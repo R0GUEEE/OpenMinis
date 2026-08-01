@@ -136,12 +136,19 @@ build_fakefsify() {
     # Configure for native build (not cross-compile)
     if [ ! -f "$BUILD_DIR/build.ninja" ]; then
         log_info "Configuring native meson build..."
-        meson setup "$BUILD_DIR" \
-            --buildtype=release \
-            -Dlog="" \
-            -Dkernel=ish \
-            -Dengine=jit \
-            -Dguest_arch=arm64
+        MESON_ARGS=(
+            --buildtype=release
+            -Dlog=""
+            -Dkernel=ish
+            -Dengine=jit
+        )
+
+        if { [ -f "$ISH_DIR/meson.options" ] && grep -q "option('guest_arch'" "$ISH_DIR/meson.options"; } \
+            || { [ -f "$ISH_DIR/meson_options.txt" ] && grep -q "option('guest_arch'" "$ISH_DIR/meson_options.txt"; }; then
+            MESON_ARGS+=(-Dguest_arch=arm64)
+        fi
+
+        meson setup "$BUILD_DIR" "${MESON_ARGS[@]}"
     fi
 
     # Build only fakefsify
