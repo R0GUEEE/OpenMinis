@@ -200,14 +200,21 @@ build_ish() {
     if [ ! -f "$BUILD_DIR/build.ninja" ]; then
         log_info "Configuring meson build..."
 
-        meson setup "$BUILD_DIR" \
-            --cross-file "$CROSS_FILE" \
-            --buildtype="$MESON_BUILDTYPE" \
-            -Dlog="" \
-            -Dlog_handler=nslog \
-            -Dkernel=ish \
-            -Dengine=jit \
-            -Dguest_arch=arm64
+        MESON_ARGS=(
+            --cross-file "$CROSS_FILE"
+            --buildtype="$MESON_BUILDTYPE"
+            -Dlog=""
+            -Dlog_handler=nslog
+            -Dkernel=ish
+            -Dengine=jit
+        )
+
+        if { [ -f "$ISH_DIR/meson.options" ] && grep -q "option('guest_arch'" "$ISH_DIR/meson.options"; } \
+            || { [ -f "$ISH_DIR/meson_options.txt" ] && grep -q "option('guest_arch'" "$ISH_DIR/meson_options.txt"; }; then
+            MESON_ARGS+=(-Dguest_arch=arm64)
+        fi
+
+        meson setup "$BUILD_DIR" "${MESON_ARGS[@]}"
     else
         log_info "Meson already configured, reconfiguring..."
         meson configure "$BUILD_DIR" --buildtype="$MESON_BUILDTYPE"
