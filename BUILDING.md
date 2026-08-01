@@ -77,8 +77,8 @@ without setting this.
 |---|---|
 | macOS | Apple Silicon strongly recommended (see the simulator note below) |
 | Xcode | With the iOS SDK; the project targets **iOS 26.2** and **Swift 6.0** |
-| Homebrew packages | `brew install ninja llvm libarchive pkg-config` |
-| Python 3 + Meson | `pip3 install meson` |
+| Homebrew packages | `brew install meson ninja llvm libarchive pkg-config` |
+| Python 3 | Required by the iSH/Alpine build scripts |
 
 `llvm` is needed to compile the guest VDSO, `libarchive` to unpack the rootfs,
 and Meson/Ninja to build the iSH kernel.
