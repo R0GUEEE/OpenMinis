@@ -10,7 +10,7 @@ set -e
 # Repository: https://github.com/emkey1/ish-AOK (default branch)
 #
 # Prerequisites:
-#   - Python 3 with meson (pip3 install meson)
+#   - meson (brew install meson)
 #   - Ninja (brew install ninja)
 #   - libarchive (brew install libarchive)
 #
@@ -67,7 +67,7 @@ check_prerequisites() {
     fi
 
     if ! command -v meson &> /dev/null; then
-        log_error "Meson is required. Install with: pip3 install meson"
+        log_error "Meson is required. Install with: brew install meson"
     fi
 
     if ! command -v ninja &> /dev/null; then
