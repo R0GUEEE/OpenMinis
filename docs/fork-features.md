@@ -78,18 +78,30 @@ the command it declares.
 ## 4. Always-on SSH server on port 2222  `[T-ssh-server]`
 
 Rootfs Management → **SSH Access**. The app installs `openssh-server` once,
-generates host keys, writes `/etc/ssh/minis_sshd_config`, applies the root
-password from the Keychain and the user's `authorized_keys`, and starts `sshd`.
-iSH implements guest sockets with host sockets, so the daemon listens on the
-device's own TCP port; the manager proves it by reading the SSH banner from
-`127.0.0.1:<port>` rather than trusting an exit code.
+generates host keys, and manages **`/etc/ssh/sshd_config` — the file sshd
+actually reads**. The settings screen is populated from that file, so an edit
+made in the terminal shows up after **Reload from sshd_config**. Minis rewrites
+only the directives it owns (at the top, because sshd takes the first value)
+and preserves any line you add yourself.
 
-* On by default, port 2222, root user. A 20-character password is generated on
-  first use and can be replaced in the UI.
-* Public keys can be pasted; password auth stays available.
-* The watchdog re-probes every 20 s while the app is active and restarts after a
-  failure. Foreground return restarts it; iOS suspends the whole process in the
-  background, which stops the daemon with it — the UI says so.
+* On by default, port 2222, root user. **Any password length, including an
+  empty password** (no password). Empty passwords set `PermitEmptyPasswords
+  yes` and clear the root shadow entry; a real password switches that off.
+* **Proof it runs in the rootfs**: the daemon is started with
+  `-f /etc/ssh/sshd_config` from a guest shell, and the UI shows the guest PID
+  and `/proc/<pid>/cmdline` as reported inside the container. Reachability is
+  still proven by reading the SSH banner off `127.0.0.1:<port>`.
+* **Reachable from other apps and other devices**: `ListenAddress 0.0.0.0`
+  with `AddressFamily any`; the UI shows both `ssh -p <port> root@127.0.0.1`
+  and the Wi-Fi address. Password auth, empty passwords and root login are
+  separate toggles mirroring `PasswordAuthentication`, `PermitEmptyPasswords`
+  and `PermitRootLogin`.
+* The watchdog re-probes every 20 s while the app is active and restarts after
+  a failure. Foreground return restarts it; iOS suspends the whole process in
+  the background, which stops the daemon with it — the UI says so.
+* Restart/stop use `pkill -x sshd`, not `pkill -f <config path>`: the latter
+  also matched the `/bin/sh -c` running the start script (its command line
+  contains the pattern) and killed the script before it could start sshd.
 * Source: `src/ios/Agent/SSH/SSHServerManager.swift`,
   `src/ios/Views/Rootfs/SSHServerView.swift`.
 

@@ -4,19 +4,23 @@
 //
 //  [T-ssh-server] Always-on SSH access to the Shell Container.
 //
-//  The iSH kernel implements the guest's sockets with host sockets, so an
-//  sshd started inside Alpine listens on the device's own TCP port (the same
-//  fact the AOJIT benchmark relies on: it starts sshd in one iSH session and
-//  reaches it from another on 127.0.0.1). This manager owns that daemon:
+//  iSH implements the guest's sockets with host sockets, so an sshd started
+//  inside Alpine listens on the device's own TCP port. This manager owns that
+//  daemon:
 //
 //    • installs openssh-server once (apk), generates host keys;
-//    • writes /etc/ssh/minis_sshd_config with the configured port (2222);
-//    • sets the root password from the Keychain and the user's authorized
-//      keys, then starts `sshd` daemonised;
-//    • proves it works by reading the SSH banner off 127.0.0.1, not by
-//      trusting an exit code;
+//    • manages /etc/ssh/sshd_config — THE config file sshd actually reads —
+//      and populates the UI from it, so a manual edit inside the container
+//      is what the app shows;
+//    • sets the root password (any length, including none) from the Keychain
+//      and the user's authorized keys, then starts `sshd` daemonised;
+//    • proves it works by reading the SSH banner off 127.0.0.1 and by finding
+//      the daemon's PID inside the guest, not by trusting an exit code;
 //    • keeps it alive while the app is active (a watchdog re-probes and
 //      restarts), and starts it again on every foreground return.
+//
+//  sshd listens on 0.0.0.0, so another app on the device reaches it at
+//  127.0.0.1:<port> and other devices on the network at <lan-ip>:<port>.
 //
 //  iOS suspends the whole process shortly after backgrounding, which stops
 //  the daemon with it; the UI says so. "Always running" therefore means "as
@@ -44,17 +48,32 @@ final class SSHServerManager: ObservableObject {
         var isBusy: Bool { self == .starting || self == .installing }
     }
 
-    // MARK: - Published state
+    // MARK: - Published state (populated FROM sshd_config)
 
     @Published private(set) var status: Status = .disabled
     @Published private(set) var isEnabled: Bool
+    /// Port from `Port` in /etc/ssh/sshd_config.
     @Published private(set) var port: Int
+    /// `PasswordAuthentication` from sshd_config.
+    @Published private(set) var passwordAuthentication: Bool
+    /// `PermitEmptyPasswords` from sshd_config.
+    @Published private(set) var allowEmptyPassword: Bool
+    /// `PermitRootLogin` is not "no".
+    @Published private(set) var permitRootLogin: Bool
     @Published private(set) var banner: String?
     @Published private(set) var lastError: String?
     @Published private(set) var authorizedKeys: String
     @Published private(set) var progressNote: String?
     /// Wi-Fi address shown in the UI (best effort; nil when not on a LAN).
     @Published private(set) var lanAddress: String?
+    /// PID of the sshd process in the guest (proof it runs in the rootfs).
+    @Published private(set) var guestPID: Int?
+    /// The daemon's command line inside the guest, as `/proc/<pid>/cmdline` says.
+    @Published private(set) var guestProcess: String?
+    /// Contents of /etc/ssh/sshd_config as last read.
+    @Published private(set) var configText: String = ""
+    /// True while a refresh is reading the guest.
+    @Published private(set) var isRefreshing = false
 
     // MARK: - Private
 
@@ -64,12 +83,14 @@ final class SSHServerManager: ObservableObject {
     private static let keysKey = "ssh.server.authorizedKeys"
     static let defaultPort = 2222
 
+    /// Linux path of the config sshd reads. The UI's source of truth.
+    nonisolated static let configPath = "/etc/ssh/sshd_config"
+    private let pidPath = "/var/run/minis-sshd.pid"
+
     private var bringUpTask: Task<Void, Never>?
     private var watchdog: Task<Void, Never>?
     private var generation = 0
     private var consecutiveFailures = 0
-    private let configPath = "/etc/ssh/minis_sshd_config"
-    private let pidPath = "/var/run/minis-sshd.pid"
 
     private init() {
         let defaults = UserDefaults.standard
@@ -80,6 +101,9 @@ final class SSHServerManager: ObservableObject {
         }
         let storedPort = defaults.integer(forKey: Self.portKey)
         port = storedPort > 0 ? storedPort : Self.defaultPort
+        passwordAuthentication = true
+        allowEmptyPassword = false
+        permitRootLogin = true
         authorizedKeys = defaults.string(forKey: Self.keysKey) ?? ""
         status = isEnabled ? .stopped : .disabled
     }
@@ -97,10 +121,32 @@ final class SSHServerManager: ObservableObject {
     }
 
     func setPort(_ newPort: Int) {
-        guard (1024...65535).contains(newPort), newPort != port else { return }
+        guard (1...65535).contains(newPort), newPort != port else { return }
         port = newPort
         UserDefaults.standard.set(newPort, forKey: Self.portKey)
-        if isEnabled && status.isRunning { restart(reason: "port changed") }
+        applyAndRestart(reason: "port changed")
+    }
+
+    func setPasswordAuthentication(_ enabled: Bool) {
+        guard enabled != passwordAuthentication else { return }
+        passwordAuthentication = enabled
+        applyAndRestart(reason: "password authentication changed")
+    }
+
+    func setAllowEmptyPassword(_ enabled: Bool) {
+        guard enabled != allowEmptyPassword else { return }
+        allowEmptyPassword = enabled
+        if enabled {
+            // Empty passwords are only meaningful with password auth on.
+            passwordAuthentication = true
+        }
+        applyAndRestart(reason: "empty-password policy changed")
+    }
+
+    func setPermitRootLogin(_ enabled: Bool) {
+        guard enabled != permitRootLogin else { return }
+        permitRootLogin = enabled
+        applyAndRestart(reason: "root login policy changed")
     }
 
     func setAuthorizedKeys(_ keys: String) {
@@ -111,28 +157,107 @@ final class SSHServerManager: ObservableObject {
         // sessions the user may be typing in.
     }
 
-    /// The root password. Generated on first use and kept in the Keychain so
-    /// a rootfs reset re-applies the same one.
+    /// The root password. Empty string means "no password" (PermitEmptyPasswords).
+    /// Generated on first use and kept in the Keychain so a rootfs reset
+    /// re-applies the same one.
     var password: String {
-        if let stored = SSHPasswordKeychain.load(), !stored.isEmpty { return stored }
+        if let stored = SSHPasswordKeychain.load() { return stored }
         let generated = Self.makePassword()
         SSHPasswordKeychain.save(generated)
         return generated
     }
+
+    var hasEmptyPassword: Bool { password.isEmpty }
 
     func regeneratePassword() -> String {
         let generated = Self.makePassword()
         SSHPasswordKeychain.save(generated)
-        if isEnabled { restart(reason: "password changed") }
+        allowEmptyPassword = false
+        passwordAuthentication = true
+        applyAndRestart(reason: "password changed")
         return generated
     }
 
+    /// Set any password, INCLUDING the empty string (no password). No minimum
+    /// length; the only rejected input is text that would corrupt the
+    /// `root:password` line handed to chpasswd (newlines).
+    @discardableResult
     func setPassword(_ newValue: String) -> Bool {
-        let trimmed = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard trimmed.count >= 8 else { return false }
-        SSHPasswordKeychain.save(trimmed)
-        if isEnabled { restart(reason: "password changed") }
+        guard !newValue.contains("\n"), !newValue.contains("\r") else { return false }
+        SSHPasswordKeychain.save(newValue)
+        // An empty password requires PermitEmptyPasswords yes; a real one
+        // must turn it off or sshd would keep accepting the old empty login.
+        allowEmptyPassword = newValue.isEmpty
+        passwordAuthentication = true
+        applyAndRestart(reason: newValue.isEmpty ? "password cleared" : "password changed")
         return true
+    }
+
+    // MARK: - Config (source of truth: /etc/ssh/sshd_config)
+
+    /// Read /etc/ssh/sshd_config from the container and populate the published
+    /// settings from it. Runs on appear and from the Refresh button; works
+    /// with the kernel idle because the file is read from the fakefs data dir.
+    func refreshFromConfig() {
+        guard !isRefreshing else { return }
+        isRefreshing = true
+        refreshLanAddress()
+        let hostURL = RootfsManager.shared.dataPath.appendingPathComponent(String(Self.configPath.dropFirst()))
+
+        Task { @MainActor in
+            defer { self.isRefreshing = false }
+            if let data = try? Data(contentsOf: hostURL),
+               let text = String(data: data, encoding: .utf8) {
+                self.apply(parsed: SSHDConfigFile.parse(text))
+                self.configText = text
+            } else {
+                self.configText = ""
+            }
+            self.refreshRuntimeStatus()
+        }
+    }
+
+    /// Re-read the daemon state: guest PID, process line, banner.
+    func refreshRuntimeStatus() {
+        guard ISHKernel.shared.isBooted, isEnabled else {
+            guestPID = nil
+            guestProcess = nil
+            return
+        }
+        let pidPath = self.pidPath
+        let port = self.port
+        Task.detached(priority: .utility) {
+            let probe = Self.guestStatus(pidPath: pidPath)
+            let banner = await Self.probeBanner(port: UInt16(port), timeout: 2)
+            await MainActor.run {
+                self.guestPID = probe.pid
+                self.guestProcess = probe.process
+                if let banner {
+                    self.banner = banner
+                    if self.status != .running && !self.status.isBusy {
+                        self.status = .running
+                        self.lastError = nil
+                    }
+                } else if !self.status.isBusy {
+                    self.banner = nil
+                }
+            }
+        }
+    }
+
+    private func apply(parsed: SSHDConfigFile) {
+        if let p = parsed.port, (1...65535).contains(p) { port = p }
+        if let v = parsed.passwordAuthentication { passwordAuthentication = v }
+        if let v = parsed.permitEmptyPasswords { allowEmptyPassword = v }
+        if let v = parsed.permitRootLogin { permitRootLogin = v }
+        UserDefaults.standard.set(port, forKey: Self.portKey)
+    }
+
+    private func applyAndRestart(reason: String) {
+        UserDefaults.standard.set(port, forKey: Self.portKey)
+        if isEnabled {
+            restart(reason: reason)
+        }
     }
 
     // MARK: - Lifecycle
@@ -173,6 +298,8 @@ final class SSHServerManager: ObservableObject {
         stopDaemon()
         status = isEnabled ? .stopped : .disabled
         banner = nil
+        guestPID = nil
+        guestProcess = nil
         logger.info("[T-ssh-server] stopped by user")
     }
 
@@ -183,6 +310,7 @@ final class SSHServerManager: ObservableObject {
             refreshLanAddress()
             if isEnabled && !status.isBusy {
                 startIfEnabled(reason: "foreground")
+                refreshFromConfig()
             }
         } else {
             watchdog?.cancel()
@@ -203,11 +331,18 @@ final class SSHServerManager: ObservableObject {
             return
         }
 
-        let port = self.port
-        let password = self.password
-        let keys = self.authorizedKeys
-        let configPath = self.configPath
-        let pidPath = self.pidPath
+        // Snapshot every setting; the start script writes them into
+        // /etc/ssh/sshd_config, which is what sshd reads.
+        let settings = SSHRuntimeSettings(
+            port: port,
+            password: password,
+            passwordAuthentication: passwordAuthentication,
+            allowEmptyPassword: allowEmptyPassword,
+            permitRootLogin: permitRootLogin,
+            authorizedKeys: authorizedKeys,
+            configPath: Self.configPath,
+            pidPath: pidPath
+        )
 
         let outcome = await Task.detached(priority: .userInitiated) { () -> SetupOutcome in
             do {
@@ -215,18 +350,13 @@ final class SSHServerManager: ObservableObject {
             } catch {
                 return SetupOutcome(error: error.localizedDescription)
             }
-            return Self.setUpAndStart(port: port, password: password,
-                                      authorizedKeys: keys, configPath: configPath,
-                                      pidPath: pidPath,
-                                      status: { note in
-                // Called from the detached task; hop to the main actor only
-                // when the manager is still the current generation.
+            return Self.setUpAndStart(settings: settings) { note in
                 Task { @MainActor in
                     guard token == self.generation else { return }
                     self.status = note == .installing ? .installing : .starting
                     self.progressNote = note.text
                 }
-            })
+            }
         }.value
 
         guard token == generation else { return }
@@ -237,15 +367,21 @@ final class SSHServerManager: ObservableObject {
             return
         }
 
-        // Exit code 0 from sshd only means it daemonised; the banner is the
-        // real proof that the port is listening and the guest is answering.
-        if let banner = await Self.probeBanner(port: UInt16(port), timeout: 6) {
+        // Exit code 0 from sshd only means it daemonised. The banner proves
+        // the port answers; the guest PID proves it is the container's sshd.
+        if let banner = await Self.probeBanner(port: UInt16(settings.port), timeout: 6) {
+            guestPID = outcome.guestPID
+            guestProcess = outcome.process
+            if !outcome.configText.isEmpty {
+                configText = outcome.configText
+                apply(parsed: SSHDConfigFile.parse(outcome.configText))
+            }
             succeed(banner: banner, note: reason)
             return
         }
 
         let tail = outcome.log.split(separator: "\n").suffix(4).joined(separator: "\n")
-        fail(AppLocalized("sshd started but did not answer on port \(port).\n\(tail)"))
+        fail(AppLocalized("sshd started but did not answer on port \(settings.port).\n\(tail)"))
     }
 
     private func succeed(banner: String, note: String) {
@@ -255,7 +391,7 @@ final class SSHServerManager: ObservableObject {
         consecutiveFailures = 0
         refreshLanAddress()
         startWatchdog()
-        logger.info("[T-ssh-server] running on :\(port) banner=\(banner) (\(note))")
+        logger.info("[T-ssh-server] running in guest pid=\(guestPID.map(String.init) ?? "?") on :\(port) banner=\(banner) (\(note))")
     }
 
     private func fail(_ message: String) {
@@ -280,11 +416,11 @@ final class SSHServerManager: ObservableObject {
     private func verifyOrRestart(source: String) async {
         guard isEnabled else { return }
         guard !status.isBusy else { return }
-        if let _ = await Self.probeBanner(port: UInt16(port), timeout: 3) {
+        if let banner = await Self.probeBanner(port: UInt16(port), timeout: 3) {
             if status != .running {
                 status = .running
                 lastError = nil
-                banner = await Self.probeBanner(port: UInt16(port), timeout: 3)
+                self.banner = banner
             }
             consecutiveFailures = 0
             return
@@ -304,6 +440,9 @@ final class SSHServerManager: ObservableObject {
     private struct SetupOutcome {
         var error: String?
         var log: String = ""
+        var guestPID: Int?
+        var process: String?
+        var configText: String = ""
     }
 
     private enum ProgressNote {
@@ -314,6 +453,22 @@ final class SSHServerManager: ObservableObject {
             case .installing: return AppLocalized("Installing OpenSSH…")
             }
         }
+    }
+
+    private struct SSHRuntimeSettings: Sendable {
+        var port: Int
+        var password: String
+        var passwordAuthentication: Bool
+        var allowEmptyPassword: Bool
+        var permitRootLogin: Bool
+        var authorizedKeys: String
+        var configPath: String
+        var pidPath: String
+    }
+
+    private struct GuestStatus: Sendable {
+        var pid: Int?
+        var process: String?
     }
 
     /// True once the fakefs change tracker and the per-session path router
@@ -349,14 +504,12 @@ final class SSHServerManager: ObservableObject {
     /// Everything that must happen inside the guest before sshd can answer.
     /// Runs off the main actor; returns a log tail for the failure path.
     nonisolated private static func setUpAndStart(
-        port: Int,
-        password: String,
-        authorizedKeys: String,
-        configPath: String,
-        pidPath: String,
+        settings: SSHRuntimeSettings,
         status: @escaping @Sendable (ProgressNote) -> Void
     ) -> SetupOutcome {
         var log = ""
+        let configPath = settings.configPath
+        let quotedConfig = shellQuote(configPath)
 
         // 1. Package. `command -v sshd` is enough: openssh-server is the only
         // package that provides it.
@@ -374,66 +527,117 @@ final class SSHServerManager: ObservableObject {
             }
         }
 
-        // 2. Host keys and the config, rewritten on every start so a port or
-        // password change takes effect without stale state.
-        let config = """
-        Port \(port)
-        ListenAddress 0.0.0.0
-        AddressFamily any
-        HostKey /etc/ssh/ssh_host_ed25519_key
-        HostKey /etc/ssh/ssh_host_rsa_key
-        PermitRootLogin yes
-        PubkeyAuthentication yes
-        PasswordAuthentication yes
-        KbdInteractiveAuthentication no
-        PermitEmptyPasswords no
-        AuthorizedKeysFile .ssh/authorized_keys
-        UseDNS no
-        X11Forwarding no
-        AllowTcpForwarding yes
-        MaxStartups 10:30:60
-        LoginGraceTime 30
-        Subsystem sftp /usr/lib/ssh/sftp-server
-        PidFile \(pidPath)
-        """
+        // 2. Read the EXISTING config, patch only the managed directives, so
+        // edits made by hand inside the container survive a restart.
+        let read = ISHShellExecutor.executeCommandSync(
+            "cat \(quotedConfig) 2>/dev/null || true", timeout: 15, lineCallback: nil)
+        let originalConfig = read.output
+        let newConfig = SSHDConfigFile.patched(
+            originalConfig,
+            port: settings.port,
+            passwordAuthentication: settings.passwordAuthentication,
+            allowEmptyPassword: settings.allowEmptyPassword,
+            permitRootLogin: settings.permitRootLogin,
+            pidPath: settings.pidPath
+        )
 
         let keyFile = "/root/.ssh/authorized_keys"
         let keySetup: String
-        if authorizedKeys.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        if settings.authorizedKeys.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             keySetup = "mkdir -p /root/.ssh; chmod 700 /root/.ssh; : > \(keyFile); chmod 600 \(keyFile)"
         } else {
-            keySetup = "mkdir -p /root/.ssh; chmod 700 /root/.ssh; printf '%s\\n' \(shellQuote(authorizedKeys)) > \(keyFile); chmod 600 \(keyFile)"
+            keySetup = "mkdir -p /root/.ssh; chmod 700 /root/.ssh; printf '%s\\n' \(shellQuote(settings.authorizedKeys)) > \(keyFile); chmod 600 \(keyFile)"
         }
 
+        // Empty password = no password: `passwd -d root` clears the shadow
+        // entry and PermitEmptyPasswords yes lets sshd accept it.
+        let passwordSetup: String
+        if settings.password.isEmpty {
+            passwordSetup = "passwd -d root >/dev/null 2>&1 || true"
+        } else {
+            passwordSetup = "printf '%s\\n' \(shellQuote("root:\(settings.password)")) | chpasswd"
+        }
+
+        // Kill a daemon started from the old config path too, so an upgrade
+        // from minis_sshd_config cannot leave a process holding the port.
         let script = """
         set -e
         mkdir -p /etc/ssh /run /var/run /root/.ssh /var/log
+        chmod 755 /run /var/run 2>/dev/null || true
         (ssh-keygen -A >/dev/null 2>&1) || true
-        printf '%s\\n' \(shellQuote(config)) > \(configPath)
-        chmod 600 \(configPath)
-        printf '%s\\n' \(shellQuote("root:\(password)")) | chpasswd
+        printf '%s' \(shellQuote(newConfig)) > \(quotedConfig)
+        chmod 600 \(quotedConfig)
+        \(passwordSetup)
         \(keySetup)
-        pkill -f \(shellQuote("sshd -f \(configPath)")) >/dev/null 2>&1 || true
+        pkill -x sshd >/dev/null 2>&1 || true
         sleep 0.3
-        /usr/sbin/sshd -f \(configPath) -E /var/log/minis-sshd.log
-        sleep 0.5
-        cat /var/log/minis-sshd.log 2>/dev/null | tail -n 5 || true
+        rm -f \(shellQuote(settings.pidPath))
+        /usr/sbin/sshd -f \(quotedConfig) -E /var/log/minis-sshd.log
+        sleep 0.6
+        if [ -f \(shellQuote(settings.pidPath)) ]; then
+            pid=$(cat \(shellQuote(settings.pidPath)) 2>/dev/null || true)
+            if [ -n "$pid" ] && [ -r "/proc/$pid/cmdline" ]; then
+                printf 'GUEST_PID=%s\\n' "$pid"
+                tr '\\0' ' ' < "/proc/$pid/cmdline"
+                printf '\\n'
+            fi
+        fi
+        tail -n 5 /var/log/minis-sshd.log 2>/dev/null || true
+        printf '\\n---MINIS-CONFIG---\\n'
+        cat \(quotedConfig)
         """
 
         let start = ISHShellExecutor.executeCommandSync(script, timeout: 120, lineCallback: nil)
         log += "\n" + start.output + "\n" + start.errorOutput
         if start.exitCode != 0 {
             let tail = (start.output + "\n" + start.errorOutput).split(separator: "\n").suffix(5).joined(separator: "\n")
-            return SetupOutcome(error: AppLocalized("Could not start sshd on port \(port):\n\(tail)"), log: log)
+            return SetupOutcome(error: AppLocalized("Could not start sshd on port \(settings.port):\n\(tail)"), log: log)
         }
-        return SetupOutcome(error: nil, log: log)
+
+        // Parse the tail we asked for: GUEST_PID, the cmdline line, then the
+        // config file itself after the marker.
+        let lines = start.output.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+        var pid: Int?
+        var process: String?
+        for (index, line) in lines.enumerated() where line.hasPrefix("GUEST_PID=") {
+            pid = Int(line.dropFirst("GUEST_PID=".count))
+            if index + 1 < lines.count { process = lines[index + 1] }
+            break
+        }
+        let configText: String
+        if let marker = start.output.range(of: "---MINIS-CONFIG---\n") {
+            configText = String(start.output[marker.upperBound...])
+        } else {
+            configText = ""
+        }
+
+        return SetupOutcome(error: nil, log: log, guestPID: pid, process: process, configText: configText)
+    }
+
+    /// PID and command line of the sshd running inside the container.
+    nonisolated private static func guestStatus(pidPath: String) -> GuestStatus {
+        let script = """
+        pid=$(cat \(shellQuote(pidPath)) 2>/dev/null || true)
+        if [ -n "$pid" ] && [ -r "/proc/$pid/cmdline" ]; then
+            printf 'PID=%s\\n' "$pid"
+            tr '\\0' ' ' < "/proc/$pid/cmdline"
+            printf '\\n'
+        fi
+        """
+        let result = ISHShellExecutor.executeCommandSync(script, timeout: 10, lineCallback: nil)
+        let lines = result.output.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+        guard let first = lines.first, first.hasPrefix("PID=") else { return GuestStatus() }
+        return GuestStatus(pid: Int(first.dropFirst(4)), process: lines.count > 1 ? lines[1] : nil)
     }
 
     private func stopDaemon() {
-        let configPath = self.configPath
         guard ISHKernel.shared.isBooted else { return }
+        // `pkill -x sshd` matches the daemon by exact process name. A
+        // `pkill -f <pattern>` here would also match the /bin/sh -c script
+        // running this very command (its command line contains the pattern)
+        // and kill the shell before it reached sshd.
         _ = ISHShellExecutor.executeCommandSync(
-            "pkill -f \(Self.shellQuote("sshd -f \(configPath)")) >/dev/null 2>&1 || true",
+            "pkill -x sshd >/dev/null 2>&1 || true",
             timeout: 15, lineCallback: nil)
     }
 
@@ -523,7 +727,7 @@ final class SSHServerManager: ObservableObject {
         return address
     }
 
-    nonisolated private static func sanitizeKeys(_ raw: String) -> String {
+    private static func sanitizeKeys(_ raw: String) -> String {
         let allowed = raw.split(separator: "\n", omittingEmptySubsequences: false)
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { line in
@@ -536,7 +740,7 @@ final class SSHServerManager: ObservableObject {
         return String(joined.prefix(16_000))
     }
 
-    nonisolated private static func makePassword() -> String {
+    private static func makePassword() -> String {
         // No ambiguous glyphs: the password is read off a phone screen and
         // typed on a computer.
         let alphabet = Array("abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789")
@@ -545,6 +749,105 @@ final class SSHServerManager: ObservableObject {
 
     nonisolated static func shellQuote(_ value: String) -> String {
         "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'"
+    }
+}
+
+// MARK: - sshd_config parsing/patching
+
+/// The subset of sshd_config the UI exposes. sshd uses the FIRST value it
+/// sees for a directive, so parsing takes the first occurrence too.
+struct SSHDConfigFile: Equatable, Sendable {
+    var port: Int?
+    var passwordAuthentication: Bool?
+    var permitEmptyPasswords: Bool?
+    var permitRootLogin: Bool?
+    var listenAddresses: [String] = []
+
+    static func parseOptional(_ text: String) -> SSHDConfigFile? {
+        text.isEmpty ? nil : parse(text)
+    }
+
+    static func parse(_ text: String) -> SSHDConfigFile {
+        var result = SSHDConfigFile()
+        var seen = Set<String>()
+        for raw in text.split(separator: "\n", omittingEmptySubsequences: false) {
+            let line = raw.trimmingCharacters(in: .whitespaces)
+            guard !line.isEmpty, !line.hasPrefix("#") else { continue }
+            let parts = line.split(maxSplits: 1, whereSeparator: { $0 == " " || $0 == "\t" })
+            guard parts.count == 2 else { continue }
+            let key = parts[0].lowercased()
+            let value = parts[1].trimmingCharacters(in: .whitespaces)
+            guard seen.insert(key).inserted else { continue }   // first wins
+            switch key {
+            case "port": result.port = Int(value)
+            case "passwordauthentication": result.passwordAuthentication = yes(value)
+            case "permitemptypasswords": result.permitEmptyPasswords = yes(value)
+            case "permitrootlogin": result.permitRootLogin = (value.lowercased() != "no")
+            case "listenaddress": result.listenAddresses.append(value)
+            default: break
+            }
+        }
+        return result
+    }
+
+    /// Rewrite only the directives Minis manages. A manually added option
+    /// (AllowUsers, banners, ciphers…) is preserved. The managed block goes
+    /// FIRST because sshd takes the first value of a directive.
+    static func patched(
+        _ original: String,
+        port: Int,
+        passwordAuthentication: Bool,
+        allowEmptyPassword: Bool,
+        permitRootLogin: Bool,
+        pidPath: String
+    ) -> String {
+        var block = """
+        # --- Managed by Minis SSH Access. Edits to these lines are rewritten. ---
+        Port \(port)
+        ListenAddress 0.0.0.0
+        AddressFamily any
+        PermitRootLogin \(permitRootLogin ? "yes" : "no")
+        PasswordAuthentication \(passwordAuthentication ? "yes" : "no")
+        PermitEmptyPasswords \(allowEmptyPassword ? "yes" : "no")
+        KbdInteractiveAuthentication no
+        PubkeyAuthentication yes
+        AuthorizedKeysFile .ssh/authorized_keys
+        UseDNS no
+        X11Forwarding no
+        AllowTcpForwarding yes
+        PidFile \(pidPath)
+        Subsystem sftp /usr/lib/ssh/sftp-server
+        """
+        if !block.hasSuffix("\n") { block += "\n" }
+
+        let managed: Set<String> = [
+            "port", "listenaddress", "addressfamily", "permitrootlogin",
+            "passwordauthentication", "permitemptypasswords",
+            "kbdinteractiveauthentication", "pubkeyauthentication",
+            "authorizedkeysfile", "usedns", "x11forwarding",
+            "allowtcpforwarding", "pidfile", "subsystem",
+        ]
+        var kept: [String] = []
+        for raw in original.split(separator: "\n", omittingEmptySubsequences: false) {
+            let line = String(raw)
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if !trimmed.isEmpty, !trimmed.hasPrefix("#") {
+                let key = trimmed.split(whereSeparator: { $0 == " " || $0 == "\t" }).first.map(String.init)?.lowercased()
+                if let key, managed.contains(key) { continue }
+            }
+            kept.append(line)
+        }
+        // Collapse leading blank lines left by removed directives.
+        while let first = kept.first, first.trimmingCharacters(in: .whitespaces).isEmpty {
+            kept.removeFirst()
+        }
+        let rest = kept.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
+        return block + "\n" + rest + "\n"
+    }
+
+    private static func yes(_ value: String) -> Bool {
+        let v = value.lowercased()
+        return v == "yes" || v == "true" || v == "1" || v == "on"
     }
 }
 
@@ -563,15 +866,16 @@ private enum SSHPasswordKeychain {
         ]
     }
 
+    /// nil when no password has ever been stored; "" when the user chose
+    /// "no password" (an empty password is a real, load-bearing value here).
     static func load() -> String? {
         var query = baseQuery()
         query[kSecReturnData as String] = true
         query[kSecMatchLimit as String] = kSecMatchLimitOne
         var item: CFTypeRef?
         guard SecItemCopyMatching(query as CFDictionary, &item) == errSecSuccess,
-              let data = item as? Data,
-              let value = String(data: data, encoding: .utf8) else { return nil }
-        return value
+              let data = item as? Data else { return nil }
+        return String(data: data, encoding: .utf8) ?? ""
     }
 
     static func save(_ value: String) {
