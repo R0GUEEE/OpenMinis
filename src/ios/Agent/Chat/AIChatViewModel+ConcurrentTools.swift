@@ -1050,8 +1050,25 @@ extension AIChatViewModel {
             }
 
         default:
-            toolOutput = "Error: Unknown tool '\(tu.name)'"
-            toolSuccess = false
+            // [T-agent-plugins] A tool contributed by an installed plugin.
+            // Resolve at call time: a plugin removed while the turn was in
+            // flight must not run, even though its schema was in the request.
+            if let pluginTool = PluginStore.resolveTool(named: tu.name) {
+                let run = await PluginToolRunner.run(
+                    pluginId: pluginTool.pluginId,
+                    linuxDirectory: pluginTool.linuxDirectory,
+                    tool: pluginTool.tool,
+                    argumentsJSON: argsJson
+                )
+                toolOutput = run.output
+                toolSuccess = run.success
+                if msgIdx < messages.count, blockIdx < messages[msgIdx].blocks.count {
+                    messages[msgIdx].blocks[blockIdx].content = toolOutput
+                }
+            } else {
+                toolOutput = "Error: Unknown tool '\(tu.name)'"
+                toolSuccess = false
+            }
         }
         } catch is CancellationError {
             let cancelContent = "<system-reminder>The user cancelled this operation. The returned result may be incomplete.</system-reminder>"

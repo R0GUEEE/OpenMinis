@@ -7,6 +7,15 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		916E97A724891F5B759C73E1 /* PluginManifest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32529488234D58031FC31C19 /* PluginManifest.swift */; };
+		722C39ADD2C00E207E87C8EA /* PluginStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC1BAAA8623062AE0A28AA74 /* PluginStore.swift */; };
+		FCC08DEE0D775CEA786E2AEF /* PluginToolRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 889EE0676E10C8BC138D5824 /* PluginToolRunner.swift */; };
+		85D7D00D57A3726A9D4AD6FB /* MCPHostedServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5EB23F34D3838B2F6E18A3C /* MCPHostedServer.swift */; };
+		B50A88BA69C62664623ECE1C /* SSHServerManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8A9BB90D5E9E59CBDC319EE /* SSHServerManager.swift */; };
+		B5373FC0D3A18F72ACC6FF1A /* RootfsPackageManagersView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23824EFC66DA09678B8ACFC7 /* RootfsPackageManagersView.swift */; };
+		DF3957FB45318DFFE6CE56A4 /* SSHServerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7361C109C08A160DAE89577 /* SSHServerView.swift */; };
+		81CE8BC2E7A4E9AAD7B51486 /* PluginsManagementView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F7FC07FBE60074A3B27C411 /* PluginsManagementView.swift */; };
+		9F343BEFCAC742F3C00761BC /* MCPHostSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FD39100A7DFE39D7E53CE34 /* MCPHostSettingsView.swift */; };
 		21FED4B7BB6F6D9476C9992E /* VoiceProvider+System.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88993FC8E3F0199C6638F664 /* VoiceProvider+System.swift */; };
 		241D530017827D7F0EB604DE /* VoiceProviderFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2941B643B8A2F048A2B154E /* VoiceProviderFactory.swift */; };
 		2A4FD49F872431D703328384 /* VoiceOutputPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 424510790AF3FB2452D3CCE3 /* VoiceOutputPlayer.swift */; };
@@ -722,6 +731,15 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		32529488234D58031FC31C19 /* PluginManifest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PluginManifest.swift; sourceTree = "<group>"; };
+		EC1BAAA8623062AE0A28AA74 /* PluginStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PluginStore.swift; sourceTree = "<group>"; };
+		889EE0676E10C8BC138D5824 /* PluginToolRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PluginToolRunner.swift; sourceTree = "<group>"; };
+		A5EB23F34D3838B2F6E18A3C /* MCPHostedServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MCPHostedServer.swift; sourceTree = "<group>"; };
+		B8A9BB90D5E9E59CBDC319EE /* SSHServerManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHServerManager.swift; sourceTree = "<group>"; };
+		23824EFC66DA09678B8ACFC7 /* RootfsPackageManagersView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootfsPackageManagersView.swift; sourceTree = "<group>"; };
+		C7361C109C08A160DAE89577 /* SSHServerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHServerView.swift; sourceTree = "<group>"; };
+		0F7FC07FBE60074A3B27C411 /* PluginsManagementView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PluginsManagementView.swift; sourceTree = "<group>"; };
+		5FD39100A7DFE39D7E53CE34 /* MCPHostSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MCPHostSettingsView.swift; sourceTree = "<group>"; };
 		0ED149397BEA7E0408C92688 /* GroupVoiceModelsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GroupVoiceModelsView.swift; sourceTree = "<group>"; };
 		0F5379380323FA8C6477708C /* GroupSlotPicker.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GroupSlotPicker.swift; sourceTree = "<group>"; };
 		16FF3462D09402F14B610CD6 /* VoiceWaveformView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = VoiceWaveformView.swift; sourceTree = "<group>"; };
@@ -1514,6 +1532,32 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		FD384C5B4A24500ED1885534 /* Plugins */ = {
+			isa = PBXGroup;
+			children = (
+				32529488234D58031FC31C19 /* PluginManifest.swift */,
+				EC1BAAA8623062AE0A28AA74 /* PluginStore.swift */,
+				889EE0676E10C8BC138D5824 /* PluginToolRunner.swift */,
+			);
+			path = Plugins;
+			sourceTree = "<group>";
+		};
+		F2B19D0F3ECC4BAC4E308CB1 /* MCPServer */ = {
+			isa = PBXGroup;
+			children = (
+				A5EB23F34D3838B2F6E18A3C /* MCPHostedServer.swift */,
+			);
+			path = MCPServer;
+			sourceTree = "<group>";
+		};
+		3A1A3148D5897CD5F7006D79 /* SSH */ = {
+			isa = PBXGroup;
+			children = (
+				B8A9BB90D5E9E59CBDC319EE /* SSHServerManager.swift */,
+			);
+			path = SSH;
+			sourceTree = "<group>";
+		};
 		42A3821DABA8773E8A5BA57E /* Voice */ = {
 			isa = PBXGroup;
 			children = (
@@ -1831,6 +1875,9 @@
 				F1A00018 /* Speech */,
 				F1A00013 /* Sync */,
 				E5LD00003 /* ToolLoopDetector.swift */,
+				FD384C5B4A24500ED1885534 /* Plugins */,
+				F2B19D0F3ECC4BAC4E308CB1 /* MCPServer */,
+				3A1A3148D5897CD5F7006D79 /* SSH */,
 			);
 			path = Agent;
 			sourceTree = "<group>";
@@ -2627,6 +2674,8 @@
 				E5TLS0011 /* ToolsSettingsView.swift */,
 				E5LOCK102 /* FaceIDProtectionSettingsView.swift */,
 				E5LOCK103 /* AppLockOverlay.swift */,
+				0F7FC07FBE60074A3B27C411 /* PluginsManagementView.swift */,
+				5FD39100A7DFE39D7E53CE34 /* MCPHostSettingsView.swift */,
 			);
 			path = Settings;
 			sourceTree = "<group>";
@@ -2669,6 +2718,8 @@
 				AA0838BE2F3B941A00049557 /* RootfsManagementView.swift */,
 				E5A0J1T0F1E0000000000001 /* AOJITSettingsView.swift */,
 				AA0838BF2F3B941A00049557 /* RootfsResetButton.swift */,
+				23824EFC66DA09678B8ACFC7 /* RootfsPackageManagersView.swift */,
+				C7361C109C08A160DAE89577 /* SSHServerView.swift */,
 			);
 			path = Rootfs;
 			sourceTree = "<group>";
@@ -3620,6 +3671,15 @@
 				8B886DA8A270E8FB58A9A1FA /* SpeechPlayerControl.swift in Sources */,
 				7A49962E84F115865D41B933 /* AudioSessionCoordinator.swift in Sources */,
 				C0B1AF9A75C90C3C178A8804 /* VoiceTextSanitizer.swift in Sources */,
+				916E97A724891F5B759C73E1 /* PluginManifest.swift in Sources */,
+				722C39ADD2C00E207E87C8EA /* PluginStore.swift in Sources */,
+				FCC08DEE0D775CEA786E2AEF /* PluginToolRunner.swift in Sources */,
+				85D7D00D57A3726A9D4AD6FB /* MCPHostedServer.swift in Sources */,
+				B50A88BA69C62664623ECE1C /* SSHServerManager.swift in Sources */,
+				B5373FC0D3A18F72ACC6FF1A /* RootfsPackageManagersView.swift in Sources */,
+				DF3957FB45318DFFE6CE56A4 /* SSHServerView.swift in Sources */,
+				81CE8BC2E7A4E9AAD7B51486 /* PluginsManagementView.swift in Sources */,
+				9F343BEFCAC742F3C00761BC /* MCPHostSettingsView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

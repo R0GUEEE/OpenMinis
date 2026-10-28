@@ -635,6 +635,7 @@ actor ISHExecutionCoordinator {
             (AIChatViewModel.minisSkillsPersistentDir, AIChatViewModel.minisSkillsLinuxDir),
             (AIChatViewModel.minisSharedPersistentDir, AIChatViewModel.minisSharedLinuxDir),
             (AIChatViewModel.minisMcpServersPersistentDir, AIChatViewModel.minisMcpServersLinuxDir),
+            (AIChatViewModel.minisPluginsPersistentDir, AIChatViewModel.minisPluginsLinuxDir),
         ]
 
         for (idx, (persistDir, linuxDir)) in subdirs.enumerated() {

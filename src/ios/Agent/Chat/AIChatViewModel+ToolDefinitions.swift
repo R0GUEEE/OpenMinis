@@ -253,6 +253,13 @@ extension AIChatViewModel {
             tools.append(Self.userAskToolDefinition)
         }
 
+        // [T-agent-plugins] Tools contributed by installed, enabled plugins.
+        // Rebuilt every turn from disk (a plugin installed or toggled mid
+        // session is visible on the next request) and namespaced by the
+        // manifest's own tool names, which PluginManifest rejects when they
+        // collide with a built-in.
+        tools.append(contentsOf: PluginStore.toolDefinitions())
+
         return tools
     }
 

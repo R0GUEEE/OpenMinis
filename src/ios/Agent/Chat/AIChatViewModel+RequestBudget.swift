@@ -461,6 +461,14 @@ extension AIChatViewModel {
         minisConfigRoot.appendingPathComponent("mcp-servers", isDirectory: true)
     }
 
+    /// Persistent storage directory for agent plugins. Plugins execute
+    /// commands in the Shell Container, so their files must be visible there:
+    /// the directory is bind-mounted at /var/minis/plugins (see the static
+    /// mount tables in ISHExecutionCoordinator.performMount).
+    nonisolated static var minisPluginsPersistentDir: URL {
+        minisAppGroupRoot.appendingPathComponent("plugins", isDirectory: true)
+    }
+
     /// Resolve a `minis://` URL to a host filesystem URL.
     /// Shared resolution logic used by Markdown link handlers and the browser's WKURLSchemeHandler.
     ///

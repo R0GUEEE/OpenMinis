@@ -144,6 +144,19 @@ struct SettingsSheet: View {
                         }
                     }
                     NavigationLink {
+                        PluginsManagementView()
+                    } label: {
+                        Label {
+                            Text("Plugins")
+                        } icon: {
+                            Image(systemName: "puzzlepiece.extension.fill")
+                                .font(.system(size: 9))
+                                .foregroundStyle(.white)
+                                .frame(width: 21, height: 21)
+                                .background(.orange, in: Circle())
+                        }
+                    }
+                    NavigationLink {
                         SoulSettingsView()
                     } label: {
                         Label {
@@ -180,6 +193,19 @@ struct SettingsSheet: View {
                                 .foregroundStyle(.white)
                                 .frame(width: 21, height: 21)
                                 .background(.teal, in: Circle())
+                        }
+                    }
+                    NavigationLink {
+                        MCPHostSettingsView()
+                    } label: {
+                        Label {
+                            Text("MCP Server")
+                        } icon: {
+                            Image(systemName: "server.rack")
+                                .font(.system(size: 9))
+                                .foregroundStyle(.white)
+                                .frame(width: 21, height: 21)
+                                .background(.cyan, in: Circle())
                         }
                     }
                     NavigationLink {
