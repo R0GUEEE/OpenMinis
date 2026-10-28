@@ -15,6 +15,7 @@ set -e
 #   - Python 3 with meson (pip3 install meson)
 #   - Ninja (brew install ninja)
 #   - LLVM/Clang (brew install llvm) - required for VDSO compilation
+#   - LLD (brew install lld) - required by the VDSO probe (clang -fuse-ld=lld)
 #   - libarchive (brew install libarchive)
 #
 # Usage:
@@ -121,6 +122,55 @@ check_prerequisites() {
         log_warning "Install with: brew install llvm"
     else
         log_info "Found LLVM Clang: $LLVM_CLANG"
+        # The iSH VDSO meson probe invokes:
+        #   clang -target i386-linux -fuse-ld=lld ...
+        # For an ELF (Linux) guest target, clang resolves '-fuse-ld=lld' by
+        # looking for a program named 'ld.lld' in its RESOURCE directory:
+        #   <clang -print-resource-dir>/bin/
+        # Homebrew's `llvm` formula no longer bundles LLD at all (it moved to
+        # a separate `lld` formula), so the llvm keg ships neither 'lld' nor
+        # 'ld.lld'. clang then errors with:
+        #   clang: error: invalid linker name in argument '-fuse-ld=lld'
+        # Fix: locate an LLD install (brew lld keg / PATH) and expose its
+        # ELF-capable driver as 'ld.lld' in the resource bin dir that clang
+        # scans, and put its directory on PATH as a fallback.
+        LLVM_BIN="$(dirname "$LLVM_CLANG")"
+
+        # Find an LLD driver binary across common install locations.
+        LLD_DRIVER=""
+        for lld_candidate in \
+            "$LLVM_BIN/lld" \
+            "/opt/homebrew/opt/lld/bin/lld" \
+            "/usr/local/opt/lld/bin/lld" \
+            "/opt/local/bin/lld"; do
+            if [ -x "$lld_candidate" ]; then
+                LLD_DRIVER="$lld_candidate"
+                break
+            fi
+        done
+        if [ -z "$LLD_DRIVER" ]; then
+            LLD_DRIVER="$(command -v lld 2>/dev/null || true)"
+        fi
+
+        if [ -n "$LLD_DRIVER" ]; then
+            LLVM_RESOURCE_BIN="$("$LLVM_CLANG" -print-resource-dir 2>/dev/null)/bin"
+            mkdir -p "$LLVM_RESOURCE_BIN" 2>/dev/null || true
+            if [ -n "$LLVM_RESOURCE_BIN" ] && [ -d "$LLVM_RESOURCE_BIN" ]; then
+                ln -sf "$LLD_DRIVER" "$LLVM_RESOURCE_BIN/ld.lld" 2>/dev/null \
+                    || log_warning "Could not create ld.lld symlink for VDSO"
+            fi
+            # Ensure the LLD bin dir is on PATH as a fallback (clang also
+            # searches PATH for -fuse-ld programs).
+            LLD_DIR="$(dirname "$LLD_DRIVER")"
+            case ":$PATH:" in
+                *":$LLD_DIR:"*) : ;;
+                *) export PATH="$LLD_DIR:$PATH" ;;
+            esac
+            log_info "VDSO linker configured: $LLD_DRIVER -> $LLVM_RESOURCE_BIN/ld.lld"
+        else
+            log_warning "LLD not found. The VDSO probe (clang -fuse-ld=lld) will fail."
+            log_warning "Install with: brew install lld"
+        fi
     fi
 
     log_success "Prerequisites check passed"
@@ -336,6 +386,10 @@ copy_outputs() {
 
     # Kernel headers
     cp "$ISH_DIR"/kernel/*.h "$OUTPUT_INCLUDE/ish/kernel/"
+    if [ -d "$ISH_DIR/kernel/abi" ]; then
+        mkdir -p "$OUTPUT_INCLUDE/ish/kernel/abi"
+        cp "$ISH_DIR"/kernel/abi/*.h "$OUTPUT_INCLUDE/ish/kernel/abi/"
+    fi
 
     # FS headers
     cp "$ISH_DIR"/fs/*.h "$OUTPUT_INCLUDE/ish/fs/"
@@ -349,8 +403,10 @@ copy_outputs() {
     # Platform headers
     cp "$ISH_DIR"/platform/*.h "$OUTPUT_INCLUDE/ish/platform/"
 
-    # Asbestos headers
-    cp "$ISH_DIR"/asbestos/*.h "$OUTPUT_INCLUDE/ish/asbestos/"
+    # Asbestos headers (only present when the asbestos engine is enabled)
+    if [ -d "$ISH_DIR/asbestos" ]; then
+        cp "$ISH_DIR"/asbestos/*.h "$OUTPUT_INCLUDE/ish/asbestos/"
+    fi
     # ARM64 guest gadgets
     mkdir -p "$OUTPUT_INCLUDE/ish/asbestos/guest-arm64/gadgets-aarch64"
     cp "$ISH_DIR"/asbestos/guest-arm64/gadgets-aarch64/*.h "$OUTPUT_INCLUDE/ish/asbestos/guest-arm64/gadgets-aarch64/" 2>/dev/null || true
@@ -375,10 +431,29 @@ copy_outputs() {
         cp "$ISH_DIR/deps/config.h" "$OUTPUT_INCLUDE/ish/deps/"
     fi
 
-    # Copy RootfsPatch bundle (rootfs overlay patches applied on boot)
+    # Copy RootfsPatch bundle (rootfs overlay patches applied on boot).
+    # Some iSH forks do not ship one, but the Xcode project hard-references
+    # deps/resources/RootfsPatch.bundle, so create a minimal no-op bundle
+    # (empty manifest -> FsApplyOverlay does nothing) when absent.
+    mkdir -p "$OUTPUT_RESOURCES"
     if [ -d "$ISH_DIR/app/RootfsPatch.bundle" ]; then
         cp -r "$ISH_DIR/app/RootfsPatch.bundle" "$OUTPUT_RESOURCES/"
         log_success "RootfsPatch.bundle copied"
+    elif [ ! -e "$OUTPUT_RESOURCES/RootfsPatch.bundle" ]; then
+        mkdir -p "$OUTPUT_RESOURCES/RootfsPatch.bundle"
+        cat > "$OUTPUT_RESOURCES/RootfsPatch.bundle/manifest.plist" <<'PLIST'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>version</key>
+	<integer>1</integer>
+	<key>files</key>
+	<array/>
+</dict>
+</plist>
+PLIST
+        log_success "RootfsPatch.bundle generated (empty manifest)"
     fi
 
     log_success "Output files copied"
