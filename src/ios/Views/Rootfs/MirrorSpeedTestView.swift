@@ -10,7 +10,11 @@ import SwiftUI
 // MARK: - Data Model
 
 enum MirrorCategory: String, CaseIterable, Identifiable {
-    case alpine, pip, npm
+    // [T-mirrors-more-package-managers] Rootfs Management now covers the
+    // package managers the shell image is used with beyond APK/pip/npm:
+    // pipx shares pip's index, cargo reads a source replacement, go reads
+    // GOPROXY, gem reads ~/.gemrc and composer reads its repositories config.
+    case alpine, pip, pipx, npm, cargo, go, gem, composer
 
     var id: String { rawValue }
 
@@ -18,7 +22,12 @@ enum MirrorCategory: String, CaseIterable, Identifiable {
         switch self {
         case .alpine: return "Alpine APK"
         case .pip: return "Python pip"
+        case .pipx: return "Python pipx"
         case .npm: return "Node.js npm"
+        case .cargo: return "Rust cargo"
+        case .go: return "Go modules"
+        case .gem: return "RubyGems"
+        case .composer: return "PHP Composer"
         }
     }
 
@@ -26,7 +35,12 @@ enum MirrorCategory: String, CaseIterable, Identifiable {
         switch self {
         case .alpine: return "mountain.2"
         case .pip: return "shippingbox"
+        case .pipx: return "shippingbox.fill"
         case .npm: return "cube"
+        case .cargo: return "gearshape.2"
+        case .go: return "chevron.left.forwardslash.chevron.right"
+        case .gem: return "diamond"
+        case .composer: return "music.note.list"
         }
     }
 
@@ -34,7 +48,12 @@ enum MirrorCategory: String, CaseIterable, Identifiable {
         switch self {
         case .alpine: return .blue
         case .pip: return .green
+        case .pipx: return .mint
         case .npm: return .red
+        case .cargo: return .orange
+        case .go: return .cyan
+        case .gem: return .pink
+        case .composer: return .purple
         }
     }
 
@@ -43,7 +62,43 @@ enum MirrorCategory: String, CaseIterable, Identifiable {
         switch self {
         case .alpine: return "etc/apk/repositories"
         case .pip: return "etc/pip/pip.conf"
+        // pipx installs each tool in its own venv with pip, which reads the
+        // per-user pip config before the global one.
+        case .pipx: return "root/.config/pip/pip.conf"
         case .npm: return "root/.npmrc"
+        case .cargo: return "root/.cargo/config.toml"
+        case .go: return "root/.config/go/env"
+        case .gem: return "root/.gemrc"
+        case .composer: return "root/.config/composer/config.json"
+        }
+    }
+
+    /// Package the manager itself comes from, for the install action in
+    /// Rootfs Management's Package Managers section.
+    var alpinePackages: [String] {
+        switch self {
+        case .alpine: return []
+        case .pip: return ["py3-pip"]
+        case .pipx: return ["pipx"]
+        case .npm: return ["nodejs", "npm"]
+        case .cargo: return ["cargo"]
+        case .go: return ["go"]
+        case .gem: return ["ruby", "ruby-dev"]
+        case .composer: return ["composer"]
+        }
+    }
+
+    /// Command whose presence means the manager is installed.
+    var probeCommand: String {
+        switch self {
+        case .alpine: return "apk"
+        case .pip: return "pip3"
+        case .pipx: return "pipx"
+        case .npm: return "npm"
+        case .cargo: return "cargo"
+        case .go: return "go"
+        case .gem: return "gem"
+        case .composer: return "composer"
         }
     }
 }
@@ -73,7 +128,7 @@ struct MirrorTestResult: Identifiable {
 // MARK: - Mirror Definitions
 
 extension MirrorEntry {
-    static let allMirrors: [MirrorEntry] = alpineMirrors + pipMirrors + npmMirrors
+    static let allMirrors: [MirrorEntry] = alpineMirrors + pipMirrors + pipxMirrors + npmMirrors + cargoMirrors + goMirrors + gemMirrors + composerMirrors
 
     // MARK: Alpine APK
     private static let alpineMirrors: [MirrorEntry] = {
@@ -120,6 +175,72 @@ extension MirrorEntry {
             m("npmmirror", "npmmirror", "https://registry.npmmirror.com/", "China"),
             m("huawei", "Huawei", "https://repo.huaweicloud.com/repository/npm/", "China"),
             m("tencent", "Tencent", "https://mirrors.cloud.tencent.com/npm/", "China"),
+        ]
+    }()
+
+    // MARK: Python pipx (same index as pip, per-user config)
+    private static let pipxMirrors: [MirrorEntry] = {
+        func m(_ id: String, _ name: String, _ url: String, _ region: String, official: Bool = false) -> MirrorEntry {
+            MirrorEntry(id: "pipx.\(id)", name: name, baseURL: url, testURL: url, category: .pipx, region: region, isOfficial: official)
+        }
+        return [
+            m("official", "Official PyPI", "https://pypi.org/simple/", "Global", official: true),
+            m("tuna", "Tsinghua TUNA", "https://pypi.tuna.tsinghua.edu.cn/simple/", "China"),
+            m("aliyun", "Alibaba", "https://mirrors.aliyun.com/pypi/simple/", "China"),
+            m("ustc", "USTC", "https://mirrors.ustc.edu.cn/pypi/web/simple/", "China"),
+            m("huawei", "Huawei", "https://repo.huaweicloud.com/repository/pypi/simple/", "China"),
+            m("tencent", "Tencent", "https://mirrors.cloud.tencent.com/pypi/simple/", "China"),
+        ]
+    }()
+
+    // MARK: Rust cargo (sparse registry)
+    private static let cargoMirrors: [MirrorEntry] = {
+        func m(_ id: String, _ name: String, _ url: String, _ region: String, official: Bool = false) -> MirrorEntry {
+            MirrorEntry(id: "cargo.\(id)", name: name, baseURL: url, testURL: url + "config.json", category: .cargo, region: region, isOfficial: official)
+        }
+        return [
+            m("official", "Official crates.io", "https://index.crates.io/", "Global", official: true),
+            m("rsproxy", "rsproxy.cn", "https://rsproxy.cn/index/", "China"),
+            m("tuna", "Tsinghua TUNA", "https://mirrors.tuna.tsinghua.edu.cn/crates.io-index/", "China"),
+            m("ustc", "USTC", "https://mirrors.ustc.edu.cn/crates.io-index/", "China"),
+        ]
+    }()
+
+    // MARK: Go modules (GOPROXY)
+    private static let goMirrors: [MirrorEntry] = {
+        func m(_ id: String, _ name: String, _ url: String, _ region: String, official: Bool = false) -> MirrorEntry {
+            MirrorEntry(id: "go.\(id)", name: name, baseURL: url, testURL: url, category: .go, region: region, isOfficial: official)
+        }
+        return [
+            m("official", "Official proxy.golang.org", "https://proxy.golang.org/", "Global", official: true),
+            m("goproxycn", "goproxy.cn", "https://goproxy.cn/", "China"),
+            m("goproxyio", "goproxy.io", "https://goproxy.io/", "China"),
+            m("aliyun", "Alibaba", "https://mirrors.aliyun.com/goproxy/", "China"),
+        ]
+    }()
+
+    // MARK: RubyGems
+    private static let gemMirrors: [MirrorEntry] = {
+        func m(_ id: String, _ name: String, _ url: String, _ region: String, official: Bool = false) -> MirrorEntry {
+            MirrorEntry(id: "gem.\(id)", name: name, baseURL: url, testURL: url + "specs.4.8.gz", category: .gem, region: region, isOfficial: official)
+        }
+        return [
+            m("official", "Official RubyGems", "https://rubygems.org/", "Global", official: true),
+            m("tuna", "Tsinghua TUNA", "https://mirrors.tuna.tsinghua.edu.cn/rubygems/", "China"),
+            m("ustc", "USTC", "https://mirrors.ustc.edu.cn/rubygems/", "China"),
+            m("huawei", "Huawei", "https://repo.huaweicloud.com/rubygems/", "China"),
+        ]
+    }()
+
+    // MARK: PHP Composer (Packagist)
+    private static let composerMirrors: [MirrorEntry] = {
+        func m(_ id: String, _ name: String, _ url: String, _ region: String, official: Bool = false) -> MirrorEntry {
+            MirrorEntry(id: "composer.\(id)", name: name, baseURL: url, testURL: url + "packages.json", category: .composer, region: region, isOfficial: official)
+        }
+        return [
+            m("official", "Official Packagist", "https://repo.packagist.org/", "Global", official: true),
+            m("aliyun", "Alibaba", "https://mirrors.aliyun.com/composer/", "China"),
+            m("tencent", "Tencent", "https://mirrors.cloud.tencent.com/composer/", "China"),
         ]
     }()
 
@@ -386,12 +507,20 @@ final class MirrorSpeedTestViewModel: ObservableObject {
             }
         }
 
+        // Remember whether the config file existed before we first wrote it, so
+        // switching the mirror off can remove a file Minis created instead of
+        // leaving a mirror behind.
+        let createdKey = "mirror.created.\(category.rawValue)"
+        if !fm.fileExists(atPath: configURL.path) {
+            UserDefaults.standard.set(true, forKey: createdKey)
+        }
+
         // Write new config
         let content: String
         switch category {
         case .alpine:
             content = "\(mirror.baseURL)v3.21/main\n\(mirror.baseURL)v3.21/community\n"
-        case .pip:
+        case .pip, .pipx:
             let host = URL(string: mirror.baseURL)?.host ?? ""
             content = """
             [global]
@@ -402,6 +531,40 @@ final class MirrorSpeedTestViewModel: ObservableObject {
             """
         case .npm:
             content = "registry=\(mirror.baseURL)\n"
+        case .cargo:
+            // Sparse registry replacement. The official index is already
+            // sparse; mirrors expose a sparse index at the same path.
+            content = """
+            [source.crates-io]
+            replace-with = "mirror"
+
+            [source.mirror]
+            registry = "sparse+\(mirror.baseURL)"
+
+            """
+        case .go:
+            // `go env -w` writes this file; writing it directly works without
+            // a booted container and is what a fresh `go env -w` produces.
+            content = "GOPROXY=\(mirror.baseURL)\n"
+        case .gem:
+            content = """
+            ---
+            :sources:
+            - \(mirror.baseURL)
+
+            """
+        case .composer:
+            content = """
+            {
+              "repositories": {
+                "packagist.org": {
+                  "type": "composer",
+                  "url": "\(mirror.baseURL)"
+                }
+              }
+            }
+
+            """
         }
 
         do {
@@ -420,8 +583,18 @@ final class MirrorSpeedTestViewModel: ObservableObject {
         let bakURL = dataPath.appendingPathComponent(category.configPath + ".bak")
 
         let fm = FileManager.default
+        let createdKey = "mirror.created.\(category.rawValue)"
         guard fm.fileExists(atPath: bakURL.path) else {
-            logger.info("No .bak for \(category.configPath), skipping restore")
+            // No original: either Minis created the file when the mirror was
+            // switched on (remove it), or the file predates this feature and
+            // is not ours to delete.
+            if UserDefaults.standard.bool(forKey: createdKey) {
+                try? fm.removeItem(at: configURL)
+                UserDefaults.standard.removeObject(forKey: createdKey)
+                logger.info("Removed Minis-created \(category.configPath)")
+            } else {
+                logger.info("No .bak for \(category.configPath), skipping restore")
+            }
             return
         }
 
@@ -430,6 +603,7 @@ final class MirrorSpeedTestViewModel: ObservableObject {
                 try fm.removeItem(at: configURL)
             }
             try fm.copyItem(at: bakURL, to: configURL)
+            UserDefaults.standard.removeObject(forKey: createdKey)
             logger.info("Restored \(category.configPath) from .bak")
         } catch {
             logger.error("Failed to restore \(category.configPath): \(error)")

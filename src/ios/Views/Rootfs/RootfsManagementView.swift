@@ -9,6 +9,7 @@ import SwiftUI
 
 struct RootfsManagementView: View {
     @StateObject private var viewModel = RootfsManagementViewModel()
+    @StateObject private var packageManagers = PackageManagersViewModel()
     @State private var showFileBrowser = false
 
     var body: some View {
@@ -69,6 +70,16 @@ struct RootfsManagementView: View {
                 }
 
                 MirrorsSectionView()
+
+                // [T-mirrors-more-package-managers] Which language package
+                // managers exist, one-tap install for the missing ones, and a
+                // shortcut to each one's registry mirror.
+                PackageManagersSection(model: packageManagers)
+            }
+
+            // [T-ssh-server] Always-on SSH access to the same container.
+            if viewModel.isInstalled {
+                SSHServerSection()
             }
 
             // [T-ios-aojit] AOT-compiled JIT images for the Shell Container.
