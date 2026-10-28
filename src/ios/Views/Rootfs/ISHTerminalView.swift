@@ -18,7 +18,12 @@ struct ISHTerminalView: View {
     @State private var showFileBrowser = false
     @State private var showRootfsManagement = false
     @State private var ctrlActive = false
+    /// [T-terminal-alt-key] Sticky Alt: the next key is sent ESC-prefixed.
+    @State private var altActive = false
     @State private var keyboardActive = true
+    /// [T-terminal-font-size] Terminal text size, shared with the pinch
+    /// gesture and the toolbar menu. Read by TerminalCellMetrics.
+    @AppStorage("terminal.fontSize") private var terminalFontSize: Double = 12
     /// Whether the software keyboard is currently visible (separate from first
     /// responder state). On Mac Catalyst or iPad with external keyboard, the
     /// software keyboard can be hidden while the input view remains first
@@ -30,6 +35,13 @@ struct ISHTerminalView: View {
     /// Track whether a sheet is presented so we can resign first responder
     /// and stop fighting with text fields inside the sheet.
     private var isSheetPresented: Bool { showFileBrowser || showRootfsManagement }
+
+    /// Clamp a step of the toolbar text-size control to the supported range.
+    private func adjustFontSize(by delta: Double) {
+        let next = terminalFontSize + delta
+        terminalFontSize = Double(min(max(next, Double(TerminalCellMetrics.minFontSize)),
+                                      Double(TerminalCellMetrics.maxFontSize)))
+    }
 
     var body: some View {
         ZStack {
@@ -58,8 +70,15 @@ struct ISHTerminalView: View {
                 },
                 onDoubleTap: {
                     viewModel.sendInput(Data([0x09]))
+                },
+                onFontSizeChange: { size in
+                    terminalFontSize = Double(size)
                 }
             )
+            // Changing the point size changes the cell metrics and the
+            // pre-resolved fonts, so the UIKit view is rebuilt for the new
+            // size. The emulator (and therefore the session) is untouched.
+            .id(terminalFontSize)
 
             // Invisible keyboard input capture
             TerminalInputView(
@@ -67,6 +86,7 @@ struct ISHTerminalView: View {
                 applicationCursorKeys: viewModel.emulator.applicationCursorKeys,
                 isActive: $keyboardActive,
                 ctrlActive: $ctrlActive,
+                altActive: $altActive,
                 isTerminalVisible: !isSheetPresented
             )
             .frame(width: 1, height: 1)
@@ -81,6 +101,7 @@ struct ISHTerminalView: View {
             TerminalKeyboardAccessory(
                 onInput: { data in viewModel.sendInput(data) },
                 ctrlActive: $ctrlActive,
+                altActive: $altActive,
                 onShowFileBrowser: { showFileBrowser = true },
                 onShowRootfsManagement: { showRootfsManagement = true },
                 keyboardActive: $keyboardActive,
@@ -101,6 +122,29 @@ struct ISHTerminalView: View {
                     Button { dismiss() } label: {
                         Image(systemName: "xmark")
                     }
+                }
+            }
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Menu {
+                    Button {
+                        adjustFontSize(by: 1)
+                    } label: {
+                        Label(AppLocalized("Increase Text Size"), systemImage: "textformat.size.larger")
+                    }
+                    .keyboardShortcut("+", modifiers: .command)
+                    Button {
+                        adjustFontSize(by: -1)
+                    } label: {
+                        Label(AppLocalized("Decrease Text Size"), systemImage: "textformat.size.smaller")
+                    }
+                    .keyboardShortcut("-", modifiers: .command)
+                    Button {
+                        terminalFontSize = Double(TerminalCellMetrics.defaultFontSize)
+                    } label: {
+                        Label(AppLocalized("Default Text Size"), systemImage: "textformat.size")
+                    }
+                } label: {
+                    Image(systemName: "textformat.size")
                 }
             }
             ToolbarItem(placement: .navigationBarTrailing) {

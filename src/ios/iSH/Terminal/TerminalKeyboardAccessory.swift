@@ -15,6 +15,9 @@ struct TerminalKeyboardAccessory: View {
     /// Sticky Ctrl modifier
     @Binding var ctrlActive: Bool
 
+    /// Sticky Alt modifier (ESC prefix on the next key).
+    @Binding var altActive: Bool
+
     /// Show file browser
     var onShowFileBrowser: () -> Void
 
@@ -90,6 +93,12 @@ struct TerminalKeyboardAccessory: View {
                     ctrlActive.toggle()
                 }
 
+                // [T-terminal-alt-key] Alt/Meta (sticky): readline/vim
+                // receive ESC+key, the same as a hardware Option press.
+                QuickCommandButton(label: "Alt", icon: "option", isActive: altActive) {
+                    altActive.toggle()
+                }
+
                 // Arrow keys
                 QuickCommandButton(label: "\u{2191}", icon: "chevron.up") {
                     sendArrow(.up)
@@ -102,6 +111,21 @@ struct TerminalKeyboardAccessory: View {
                 }
                 QuickCommandButton(label: "\u{2192}", icon: "chevron.right") {
                     sendArrow(.right)
+                }
+
+                // Navigation keys the software keyboard has no way to send.
+                // Normal-mode sequences; shells and readline accept these.
+                QuickCommandButton(label: "Home", icon: "arrow.up.to.line") {
+                    onInput(Data([0x1B, 0x5B, 0x48]))
+                }
+                QuickCommandButton(label: "End", icon: "arrow.down.to.line") {
+                    onInput(Data([0x1B, 0x5B, 0x46]))
+                }
+                QuickCommandButton(label: "PgUp", icon: "chevron.up.2") {
+                    onInput(Data([0x1B, 0x5B, 0x35, 0x7E]))
+                }
+                QuickCommandButton(label: "PgDn", icon: "chevron.down.2") {
+                    onInput(Data([0x1B, 0x5B, 0x36, 0x7E]))
                 }
 
                 // Common control keys

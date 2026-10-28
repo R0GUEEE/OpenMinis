@@ -20,11 +20,37 @@ struct TerminalCellMetrics {
     let descent: CGFloat
     let font: CTFont
 
-    static let fontSize: CGFloat = 12
+    /// [T-terminal-font-size] The point size is a user setting now (pinch on
+    /// the terminal, or the text-size menu in the toolbar). 9–28pt keeps the
+    /// grid usable on every iPhone width.
+    static let defaultFontSize: CGFloat = 12
+    static let minFontSize: CGFloat = 9
+    static let maxFontSize: CGFloat = 28
+    /// Shared with ISHTerminalView's @AppStorage and the settings row.
+    static let fontSizeDefaultsKey = "terminal.fontSize"
     static let fontName = "Menlo"
 
-    static let shared: TerminalCellMetrics = {
-        let font = CTFontCreateWithName(fontName as CFString, fontSize, nil)
+    static var fontSize: CGFloat {
+        let stored = UserDefaults.standard.double(forKey: fontSizeDefaultsKey)
+        guard stored > 0 else { return defaultFontSize }
+        return min(max(CGFloat(stored), minFontSize), maxFontSize)
+    }
+
+    /// One metrics value per point size. `shared` used to be a `let`; a size
+    /// change has to invalidate the glyph measurements, and the terminal view
+    /// is rebuilt with a new identity when it happens (see ISHTerminalView).
+    nonisolated(unsafe) private static var cache: (size: CGFloat, metrics: TerminalCellMetrics)?
+
+    static var shared: TerminalCellMetrics {
+        let size = fontSize
+        if let cache, cache.size == size { return cache.metrics }
+        let metrics = measure(size: size)
+        cache = (size, metrics)
+        return metrics
+    }
+
+    private static func measure(size: CGFloat) -> TerminalCellMetrics {
+        let font = CTFontCreateWithName(fontName as CFString, size, nil)
 
         var chars: [UniChar] = [0x4D] // 'M'
         var glyphs: [CGGlyph] = [0]
@@ -45,7 +71,7 @@ struct TerminalCellMetrics {
             descent: descent,
             font: font
         )
-    }()
+    }
 }
 
 // MARK: - SwiftUI Bridge
@@ -56,6 +82,8 @@ struct TerminalCanvasView: UIViewRepresentable {
     var onPaste: ((Data) -> Void)?
     var onTap: (() -> Void)?
     var onDoubleTap: (() -> Void)?
+    /// Pinch-to-zoom result: the point size the user zoomed to.
+    var onFontSizeChange: ((CGFloat) -> Void)?
 
     func makeCoordinator() -> TerminalScrollCoordinator {
         TerminalScrollCoordinator(emulator: emulator, onResize: onResize, onPaste: onPaste)
@@ -69,6 +97,7 @@ struct TerminalCanvasView: UIViewRepresentable {
         context.coordinator.containerView = container
         container.onTap = onTap
         container.onDoubleTap = onDoubleTap
+        container.onFontSizeChange = onFontSizeChange
         return container
     }
 
@@ -83,6 +112,7 @@ struct TerminalCanvasView: UIViewRepresentable {
         coord.onPaste = onPaste
         container.onTap = onTap
         container.onDoubleTap = onDoubleTap
+        container.onFontSizeChange = onFontSizeChange
     }
 }
 
@@ -218,6 +248,7 @@ final class TerminalScrollContainerView: UIView {
     private var cancellable: AnyCancellable?
     var onTap: (() -> Void)?
     var onDoubleTap: (() -> Void)?
+    var onFontSizeChange: ((CGFloat) -> Void)?
     private var resizeDebounceTimer: Timer?
 
     // MARK: - Frozen scrollback cache
@@ -351,6 +382,14 @@ final class TerminalScrollContainerView: UIView {
         scrollView.addGestureRecognizer(doubleTap)
         scrollView.addGestureRecognizer(tap)
 
+        // [T-terminal-font-size] Pinch zooms the text. The size is applied
+        // when the gesture ends, because changing it rebuilds the view (the
+        // metrics and pre-resolved fonts are per size), and rebuilding in the
+        // middle of a gesture would drop the recognizer.
+        let pinch = UIPinchGestureRecognizer(target: self, action: #selector(handlePinch(_:)))
+        pinch.cancelsTouchesInView = false
+        scrollView.addGestureRecognizer(pinch)
+
         // Observe emulator version changes
         cancellable = emulator.$version
             .dropFirst()
@@ -376,6 +415,17 @@ final class TerminalScrollContainerView: UIView {
 
     @objc private func handleDoubleTap(_ gesture: UITapGestureRecognizer) {
         onDoubleTap?()
+    }
+
+    @objc private func handlePinch(_ gesture: UIPinchGestureRecognizer) {
+        guard gesture.state == .ended || gesture.state == .cancelled else { return }
+        let base = TerminalCellMetrics.fontSize
+        let next = min(max(base * gesture.scale, TerminalCellMetrics.minFontSize),
+                       TerminalCellMetrics.maxFontSize)
+        // Sub-point changes would churn the view for nothing.
+        guard abs(next - base) >= 0.5 else { return }
+        TerminalRedrawLog.log("pinch font \(base) -> \(next)")
+        onFontSizeChange?(next)
     }
 
     override func layoutSubviews() {

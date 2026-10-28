@@ -25,6 +25,10 @@ struct TerminalInputView: UIViewRepresentable {
     /// Whether Ctrl modifier is sticky (from accessory bar)
     @Binding var ctrlActive: Bool
 
+    /// Whether Alt (Meta) is sticky: the next key is sent with an ESC prefix,
+    /// which is how Alt+x reaches readline and vim.
+    @Binding var altActive: Bool
+
     /// Whether the terminal view is currently visible (not obscured by sheet)
     var isTerminalVisible: Bool = true
 
@@ -34,6 +38,8 @@ struct TerminalInputView: UIViewRepresentable {
         view.applicationCursorKeys = applicationCursorKeys
         view.ctrlActive = ctrlActive
         view.onCtrlConsumed = { ctrlActive = false }
+        view.altActive = altActive
+        view.onAltConsumed = { altActive = false }
         // Hide the predictive text bar iPadOS shows above a physical keyboard
         view.inputAssistantItem.leadingBarButtonGroups = []
         view.inputAssistantItem.trailingBarButtonGroups = []
@@ -45,6 +51,7 @@ struct TerminalInputView: UIViewRepresentable {
         uiView.onInput = onInput
         uiView.applicationCursorKeys = applicationCursorKeys
         uiView.ctrlActive = ctrlActive
+        uiView.altActive = altActive
 
         let shouldBeFirstResponder = isActive && isTerminalVisible
         let coord = context.coordinator
@@ -83,6 +90,8 @@ class TerminalKeyInputView: UIView, UITextInput {
     var applicationCursorKeys: Bool = false
     var ctrlActive: Bool = false
     var onCtrlConsumed: (() -> Void)?
+    var altActive: Bool = false
+    var onAltConsumed: (() -> Void)?
 
     // MARK: - Marked text state (IME composition)
 
@@ -123,6 +132,16 @@ class TerminalKeyInputView: UIView, UITextInput {
                 return
             }
             onCtrlConsumed?()
+        }
+
+        // Alt is an ESC prefix in the terminal protocol: Ctrl+[ or Alt+x is
+        // how readline and vim receive Meta bindings.
+        if altActive {
+            onAltConsumed?()
+            if let data = text.data(using: .utf8) {
+                onInput?(Data([0x1B]) + data)
+                return
+            }
         }
 
         if let data = text.data(using: .utf8) {

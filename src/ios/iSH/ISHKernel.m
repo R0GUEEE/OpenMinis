@@ -1829,6 +1829,11 @@ static void handle_process_exit(struct task *task, int code) {
         KERNEL_ENVP_APPEND("PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/bin");
         KERNEL_ENVP_APPEND("LANG=C.UTF-8");
         KERNEL_ENVP_APPEND("CHARSET=UTF-8");
+        // [T-terminal-compat] Programs that check COLORTERM (less, bat, delta,
+        // recent vim/neovim, many CLIs) only emit 24-bit colour when it says
+        // truecolor; without it they degrade to 256-colour or plain text even
+        // though the renderer handles SGR 38;2/48;2.
+        KERNEL_ENVP_APPEND("COLORTERM=truecolor");
         KERNEL_ENVP_APPEND("ENV=/etc/profile");
         // Mirrors ISHShellExecutor: route browser-open calls to the in-app
         // preview shim. Needed for interactive terminal sessions too, where
