@@ -585,6 +585,14 @@ struct MinisApp: App {
                     entryDates: interruptedWithDates,
                     trigger: "launch-or-foreground")
                 ISHKernel.shared.refreshDns()
+                // [T-ssh-server] Bring the always-on SSH server back after a
+                // foreground return. iOS suspends the process (and therefore
+                // the guest sshd) in the background; this restarts it once the
+                // app is active again. Cheap when it already answers.
+                SSHServerManager.shared.handleScenePhase(active: true)
+                // [T-mcp-host] The hosted MCP listener is in-process too; it
+                // dies with a suspension, so bring it back on foreground.
+                MCPHostedServer.shared.startIfEnabled()
 
                 #if DEBUG
                 debugServer.restartIfDead(port: 8321)
@@ -696,6 +704,9 @@ struct MinisApp: App {
 
         case .background:
             backgroundEntryDate = Date()
+            // [T-ssh-server] Stop the watchdog; the whole process is about to
+            // be suspended, so probing the daemon would only fail and log.
+            SSHServerManager.shared.handleScenePhase(active: false)
             let remaining = UIApplication.shared.backgroundTimeRemaining
             lifecycleLog.info("[Lifecycle] → Background (remaining: \(Self.formatTimeRemaining(remaining)))")
             CrashReporter.shared.updateMarkerPhase(phase: "background")
