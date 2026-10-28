@@ -526,12 +526,29 @@ final class AOJITSettingsModel: ObservableObject {
         fixing = image.id
         fixError = nil
         Task.detached(priority: .userInitiated) {
-            let result = ISHShellExecutor.executeCommandSync("apk add \(spec) 2>&1", timeout: 600, lineCallback: nil)
+            var result = ISHShellExecutor.executeCommandSync("apk add \(spec) 2>&1", timeout: 600, lineCallback: nil)
+            // [T-aojit-ready-family] The pinned build is what the image was
+            // recorded from, but Alpine drops old builds from the mirror over
+            // time; a failed pinned install used to be a dead end. Retry
+            // unpinned: a newer build is served by family matching, so it
+            // still gets AOJIT.
+            var installedUnpinned = false
+            if result.exitCode != 0, let mark = spec.firstIndex(of: "=") {
+                let name = String(spec[..<mark])
+                let retry = ISHShellExecutor.executeCommandSync("apk add \(name) 2>&1", timeout: 600, lineCallback: nil)
+                if retry.exitCode == 0 {
+                    result = retry
+                    installedUnpinned = true
+                }
+            }
+            let finalResult = result
             await MainActor.run {
                 self.fixing = nil
-                if result.exitCode != 0 {
-                    let tail = result.output.split(separator: "\n").suffix(3).joined(separator: "\n")
+                if finalResult.exitCode != 0 {
+                    let tail = finalResult.output.split(separator: "\n").suffix(3).joined(separator: "\n")
                     self.fixError = AppLocalized("apk add \(spec) failed: \(tail)")
+                } else if installedUnpinned {
+                    self.fixNotice = AppLocalized("The recorded build is no longer in the repositories, so the current build was installed instead. AOJIT serves it through family matching.")
                 }
                 self.refresh()
             }
@@ -674,7 +691,7 @@ struct AOJITSettingsSection: View {
             case .matched:
                 Text("Full speed: this is the recorded build.").font(.caption2).foregroundStyle(.secondary)
             case .family(let file):
-                Text("Another version is installed (\(file)): code unchanged since \(image.build.package) runs from the image, the rest is emulated.")
+                Text("Ready: another version is installed (\(file)). Code unchanged since \(image.build.package) runs from the image; only the changed parts are emulated. No downgrade is needed.")
                     .font(.caption2).foregroundStyle(.secondary)
             case .mismatch:
                 Text("The installed file is not a version this image can serve, so it runs without AOJIT.")
@@ -711,8 +728,6 @@ struct AOJITSettingsSection: View {
                 } label: {
                     if model.fixing == image.id {
                         HStack(spacing: 6) { ProgressView().controlSize(.small); Text("Installing…") }
-                    } else if case .family = state {
-                        Text("Install \(image.build.package) for full speed")
                     } else {
                         Text("Fix: install \(image.build.package)")
                     }
@@ -735,8 +750,16 @@ struct AOJITSettingsSection: View {
     }
 
     private func needsFix(_ image: AOJITImage) -> Bool {
+        // [T-aojit-ready-family] A module in the image's family is NOT a
+        // problem to fix: the runtime serves that version (code unchanged
+        // since the recorded build runs from the image), so the row reads
+        // Ready. Offering `apk add <pkg>=<old build>` here downgraded a
+        // healthy, newer package for a marginal gain and could pull dependent
+        // packages back with it — the versioning trap this screen used to
+        // walk users into. Fix is only for a module that carries no image at
+        // all.
         switch model.states[image.id] {
-        case .notInstalled, .mismatch, .family: return true
+        case .notInstalled, .mismatch: return true
         default: return false
         }
     }
@@ -748,8 +771,7 @@ struct AOJITSettingsSection: View {
         } else {
             switch model.states[image.id] ?? .checking {
             case .checking: ProgressView().controlSize(.mini)
-            case .matched: badge("Ready", color: .green)
-            case .family: badge("Partial", color: .blue)
+            case .matched, .family: badge("Ready", color: .green)
             case .notInstalled: badge("Not installed", color: .secondary)
             case .mismatch: badge("No image", color: .orange)
             }

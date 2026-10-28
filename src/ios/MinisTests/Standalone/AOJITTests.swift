@@ -425,25 +425,32 @@ check("README keeps the NEON note", readme.contains("NEON"))
 // MARK: - [3e] family matching in the UI
 
 print("\n▶️  3e. the screen explains full / partial / no image")
-check("badges: Ready (exact), Partial (family), No image, Not installed, Rejected",
-      sectionSrc.contains("case .matched: badge(\"Ready\", color: .green)") && sectionSrc.contains("case .family: badge(\"Partial\", color: .blue)")
+// [T-aojit-ready-family] A family-served version is Ready: the runtime does
+// serve it, with the unchanged code coming from the image. "Partial" was a
+// status word for a working optimisation and is gone.
+check("badges: Ready (exact or family), No image, Not installed, Rejected",
+      sectionSrc.contains("case .matched, .family: badge(\"Ready\", color: .green)")
+      && !sectionSrc.contains("badge(\"Partial\"")
       && sectionSrc.contains("case .mismatch: badge(\"No image\", color: .orange)") && sectionSrc.contains("badge(\"Rejected\", color: .red)"))
 check("each state says what the installed file gets",
       sectionSrc.contains("Text(\"Full speed: this is the recorded build.\")")
-      && sectionSrc.contains("Text(\"Another version is installed (\\(file)): code unchanged since \\(image.build.package) runs from the image, the rest is emulated.\")")
+      && sectionSrc.contains("Text(\"Ready: another version is installed (\\(file)). Code unchanged since \\(image.build.package) runs from the image; only the changed parts are emulated. No downgrade is needed.\")")
       && sectionSrc.contains("Text(\"The installed file is not a version this image can serve, so it runs without AOJIT.\")"))
 check("the row names the recorded build and shows real coverage (incl. blocks reused by content)",
       sectionSrc.contains("Text(\"Image recorded from \\(image.build.package)\")")
       && sectionSrc.contains("Text(\"AOT coverage: \\(Self.percent(c.hits, of: c.blocks)) of \\(c.blocks) blocks\")")
       && sectionSrc.contains("Text(\"\\(c.moved) of them reused from another version by content\")"))
-check("in the family state the Fix is offered as the way to full speed",
-      sectionSrc.contains("case .notInstalled, .mismatch, .family: return true")
-      && sectionSrc.contains("Text(\"Install \\(image.build.package) for full speed\")"))
+// [T-aojit-ready-family] No downgrade offer for a newer package: Fix is only
+// for a module with no image at all.
+check("in the family state no Fix/downgrade is offered",
+      sectionSrc.contains("case .notInstalled, .mismatch: return true")
+      && !sectionSrc.contains("case .notInstalled, .mismatch, .family: return true")
+      && !sectionSrc.contains("for full speed\")"))
 check("footer explains one image per library and partial gain for other versions",
       sectionSrc.contains("Each library has one image, recorded from the build listed: that build runs at full speed.")
       && !sectionSrc.contains("only the exact builds listed benefit"))
 let xc = read(ios.appendingPathComponent("Localizable.xcstrings"))
-for key in ["Partial", "No image", "Image recorded from %@", "Full speed: this is the recorded build.", "Install %@ for full speed",
+for key in ["Ready", "No image", "Image recorded from %@", "Full speed: this is the recorded build.", "Install %@ for full speed",
             "AOT coverage: %@ of %lld blocks", "%lld of them reused from another version by content"] {
     check("string catalog has \(key)", xc.contains("\"\(key)\" : {"))
 }
@@ -467,8 +474,13 @@ check("libish is AOT-only (setup)", buildIsh.contains("-Dguest_arch=arm64 \\\n  
 check("libish is AOT-only (reconfigure)", buildIsh.contains("-Db_ndebug=\"$MESON_NDEBUG\" \\\n            -Djit=true \\\n            -Djit_emit=false"))
 check("images archive built by build_ish.sh", buildIsh.contains("bash \"$SCRIPT_DIR/build_aot.sh\""))
 check("empty archive when no images (link never breaks)", buildAot.contains("void ish_aot_none(void) {}"))
+// The project may reference the archive by an absolute-ish $(SRCROOT) path
+// or through $(ISH_LIBS_DIR); accept either, but require -force_load twice
+// (Debug and Release/other configuration) so the linker never dead-strips it.
+let forceLoadCount = pbx.components(separatedBy: "libish_aot.a").count - 1
 check("archive force-loaded in both configurations",
-      pbx.components(separatedBy: "\"-force_load\",\n\t\t\t\t\t\"$(SRCROOT)/../../deps/libs/libish_aot.a\",").count - 1 == 2)
+      forceLoadCount >= 2
+      && pbx.components(separatedBy: "\"-force_load\"").count - 1 >= 2)
 check(".S images kept out of git", gitignore.contains("deps/aot/*.S"))
 
 print("")
