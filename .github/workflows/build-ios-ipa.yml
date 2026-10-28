@@ -56,7 +56,7 @@ jobs:
 
       - name: Install native build dependencies
         run: |
-          brew install ninja llvm lld libarchive pkg-config meson
+          brew install ninja llvm lld libarchive pkg-config meson go
 
       - name: Prepare provider customization config
         run: |
@@ -76,6 +76,12 @@ jobs:
 
       - name: Prepare Alpine rootfs
         run: ./deps/prepare_alpine_rootfs.sh
+
+      # The app links Rclone.xcframework (backup remotes). Go 1.27 cannot
+      # compile rclone's pinned go-json-experiment dependency, so pin the
+      # toolchain that can.
+      - name: Build rclone framework
+        run: GOTOOLCHAIN=go1.25.5 ./deps/build_rclone_ios.sh
 
       - name: Resolve Swift packages
         run: xcodebuild -resolvePackageDependencies -project "$PROJECT" -scheme "$SCHEME"
