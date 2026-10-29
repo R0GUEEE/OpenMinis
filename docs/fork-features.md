@@ -1,6 +1,6 @@
 # Fork additions (iOS)
 
-This fork adds eight things on top of upstream OpenMinis. All of them are iOS-first;
+This fork adds nine things on top of upstream OpenMinis. All of them are iOS-first;
 the Android tree is untouched.
 
 ## 1. Agent plugins  `[T-agent-plugins]`
@@ -231,10 +231,70 @@ Behaviour is unchanged. One latent bug in that block was fixed on the way:
 `AlwaysOnController.chatAppeared(key:)` takes an optional, and the in-flight
 refactor assigned `vm.draftId` (optional) to a non-optional local.
 
+## 9. The App Group container can be missing without killing the app  `[T-appgroup-container-not-fatal]`
+
+The app crashed on launch on device (SIGTRAP, `Minis-2026-10-29`):
+
+```
+MinisApp.init()                     MinisApp.swift:174
+  SoulStore.refreshCache()          SoulStore.swift:922
+    SoulStore.load()                SoulStore.swift:900
+      minisAppGroupRoot             AIChatViewModel+RequestBudget.swift:424  ← trap
+```
+
+`containerURL(forSecurityApplicationGroupIdentifier:)` was force-unwrapped. That
+call returns nil whenever the signature does not carry the group entitlement — a
+wildcard provisioning profile silently drops App Groups — when the group is
+revoked, and briefly on a fresh install. So a provisioning accident was a
+startup crash with no way out for the user.
+
+* `SharedContainerStore.containerURL` is the optional lookup;
+  `fallbackContainerURL` is a private Application Support stand-in used when it
+  is nil. `AIChatViewModel.appGroupContainerURL` resolves between them, so
+  `minisAppGroupRoot`, `minisConfigRoot`, skills, memory and shared files all
+  keep working — privately, and without appearing in iOS Files.
+* `MinisApp.reportAppGroupAvailability()` states the condition once at launch, so
+  "shared folders stopped showing up" has a diagnostic instead of being silent.
+* The legacy `MinisShared` migration skips when there is no container instead of
+  trapping; the FileProvider extension falls back too, because the system
+  restarts a crashing extension in a loop.
+* Provisioning: the exported profile must carry
+  `com.apple.security.application-groups = [group.com.r0gueee.minis]`. The
+  bundle-id rename is what made a wildcard profile drop it.
+* Tests: `src/ios/MinisTests/Standalone/AppGroupFallbackTests.swift` — the store
+  is compiled as shipped, and the suite fails if any app source force-unwraps a
+  group lookup again.
+
 ## Building this fork
 
-The normal first-build steps from `BUILDING.md` apply. On this machine the
-toolchain needed one extra piece for the iSH VDSO:
+**Building the IPA is a CI job, not a local one.** Push to `main` on
+`R0GUEEE/OpenMinis` and the **Build iOS IPA** workflow runs on the pushed commit:
+
+```sh
+git push fork main
+gh run list --repo R0GUEEE/OpenMinis --workflow "Build iOS IPA" --limit 1
+gh run watch <run-id> --repo R0GUEEE/OpenMinis
+gh run download <run-id> --repo R0GUEEE/OpenMinis -n ios-ipa   # OpenMinis-unsigned.ipa
+```
+
+Without signing secrets the workflow produces an **unsigned** IPA (useful for
+verifying the build). A signed development IPA needs `xcodebuild archive` +
+`-exportArchive` on a Mac with the team's certificate and
+`build/ExportOptions.plist` (team `V5GXMU3HC2`, method `development`); that takes
+~2 h here because Release builds the whole app module in one whole-module
+`swift-frontend`.
+
+Two project settings matter for CI and are easy to get wrong:
+
+* `IPHONEOS_DEPLOYMENT_TARGET` must stay an explicit value. Using
+  `$(RECOMMENDED_IPHONEOS_DEPLOYMENT_TARGET)` makes the minimum follow the Xcode
+  version — 16.x locally, **15.0 on the runner** — and `MinisFileProvider` then
+  fails on iOS 16 APIs (`NSFileProviderRequest` and friends).
+* The App Group entitlement must be in the profile, not just the entitlements
+  files (see item 9).
+
+The normal first-build steps from `BUILDING.md` apply for local work. On this
+machine the toolchain needed one extra piece for the iSH VDSO:
 
 ```sh
 brew install ninja llvm lld libarchive pkg-config go meson

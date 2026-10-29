@@ -159,6 +159,11 @@ struct MinisApp: App {
         // storm that has caused 0x8BADF00D scene-update watchdog kills on
         // markdown tables during streaming.
         NSTextContainerSetSizeGuard.install()
+        // [T-appgroup-container-not-fatal] Say it once, on the record: without
+        // the App Group the app still runs, but shared folders / skills / memory
+        // stay private and stop appearing in iOS Files. Silence here is what
+        // made the launch crash look like a mystery.
+        Self.reportAppGroupAvailability()
         // Enable in-app language override for String(localized:) and UIKit strings
         Bundle.enableLanguageOverride()
         let lang = UserDefaults.standard.string(forKey: "appLanguage") ?? ""
@@ -1189,9 +1194,12 @@ struct MinisApp: App {
     private static func migrateSharedDirToAppGroup() {
         let fm = FileManager.default
         let library = fm.urls(for: .libraryDirectory, in: .userDomainMask).first!
-        let container = fm.containerURL(forSecurityApplicationGroupIdentifier: "group.com.r0gueee.minis")!
+        // [T-appgroup-container-not-fatal] Optional, not `!`: without a group
+        // container the only migration that needs one is skipped, instead of
+        // killing the app at launch.
+        let container = SharedContainerStore.containerURL
 
-        let migrations: [(source: URL, dest: URL, label: String)] = [
+        var migrations: [(source: URL, dest: URL, label: String)] = [
             // Legacy Library/MinisChat/shared → new shared
             (library.appendingPathComponent("MinisChat/shared", isDirectory: true),
              AIChatViewModel.minisSharedPersistentDir, "shared"),
@@ -1201,10 +1209,13 @@ struct MinisApp: App {
             // Legacy Library/MinisChat/skills → new skills
             (library.appendingPathComponent("MinisChat/skills", isDirectory: true),
              AIChatViewModel.minisSkillsPersistentDir, "skills"),
-            // Old App Group MinisShared → new shared
-            (container.appendingPathComponent("MinisShared", isDirectory: true),
-             AIChatViewModel.minisSharedPersistentDir, "MinisShared→shared"),
         ]
+        // Old App Group MinisShared → new shared. Only meaningful when there IS
+        // an App Group container; without one, there is nothing to migrate from.
+        if let container {
+            migrations.append((container.appendingPathComponent("MinisShared", isDirectory: true),
+                               AIChatViewModel.minisSharedPersistentDir, "MinisShared→shared"))
+        }
 
         for migration in migrations {
             guard fm.fileExists(atPath: migration.source.path) else { continue }
@@ -1221,6 +1232,21 @@ struct MinisApp: App {
                 try? fm.removeItem(at: migration.source)
             }
             lifecycleLog.info("[FileProvider] migrated \(migration.label) to App Group")
+        }
+    }
+
+    /// [T-appgroup-container-not-fatal] One line at launch recording whether the
+    /// App Group container exists.
+    ///
+    /// The launch-time paths now fall back instead of trapping, so a missing
+    /// group is survivable — and this is the only place the degraded state is
+    /// stated. Without it, "shared folders stopped showing up in Files" has no
+    /// diagnostic anywhere.
+    private static func reportAppGroupAvailability() {
+        if let container = SharedContainerStore.containerURL {
+            lifecycleLog.info("[AppGroup] \(SharedContainerStore.appGroupID) available at \(container.path)")
+        } else {
+            lifecycleLog.error("[AppGroup] \(SharedContainerStore.appGroupID) UNAVAILABLE — shared / skills / memory fall back to \(SharedContainerStore.fallbackContainerURL.path) and will not appear in iOS Files. The provisioning profile must carry the App Group entitlement.")
         }
     }
 

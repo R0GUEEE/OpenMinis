@@ -12,12 +12,18 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
     private static let log = OSLog(subsystem: "com.openminis.app.FileProvider", category: "Extension")
 
     /// Root directory for all FileProvider-visible files in the App Group container.
+    ///
+    /// [T-appgroup-container-not-fatal] Not `!`. The system restarts this
+    /// extension whenever it dies, so a trap here is a restart loop rather than
+    /// one crash. Without a group container the extension has nothing to serve,
+    /// so it works out of a private fallback — degraded, alive.
     static var providerRoot: URL {
-        let container = FileManager.default.containerURL(
-            forSecurityApplicationGroupIdentifier: "group.com.r0gueee.minis"
-        )!
+        let fm = FileManager.default
+        let container = fm.containerURL(forSecurityApplicationGroupIdentifier: "group.com.r0gueee.minis")
+            ?? fm.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+                .appendingPathComponent("AppGroupFallback", isDirectory: true)
         let url = container.appendingPathComponent("MinisFileProvider", isDirectory: true)
-        try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+        try? fm.createDirectory(at: url, withIntermediateDirectories: true)
         return url
     }
 

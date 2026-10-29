@@ -11,6 +11,28 @@ enum SharedContainerStore {
         UserDefaults(suiteName: appGroupID)
     }
 
+    /// The App Group container, or nil when iOS will not give us one.
+    ///
+    /// [T-appgroup-container-not-fatal] nil is a real state, not an impossible
+    /// one: the entitlement is dropped when the build is signed with a wildcard
+    /// provisioning profile, the group can be revoked, and on a fresh install
+    /// the container is not materialised yet. Every caller must treat this as
+    /// optional — force-unwrapping it is a launch-time crash with nothing the
+    /// user can do about it (observed as SIGTRAP in `SoulStore.load`, reached
+    /// from `MinisApp.init`).
+    static var containerURL: URL? {
+        FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupID)
+    }
+
+    /// Writable stand-in used when `containerURL` is nil, so launch-time paths
+    /// (SOUL.md, skills, memory, plugins) still work. They lose sharing with
+    /// the extensions — iOS Files visibility, the Share extension's staging
+    /// directory — but the app runs.
+    static var fallbackContainerURL: URL {
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("AppGroupFallback", isDirectory: true)
+    }
+
     /// Directory in the shared container for transferring attachment files.
     static var sharedFileDirectory: URL? {
         FileManager.default
