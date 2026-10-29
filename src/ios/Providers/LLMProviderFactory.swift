@@ -204,10 +204,12 @@ enum LLMProviderFactory {
             // SDK (which sets no UA itself) doesn't fall back to URLSession's
             // build-number default. OAuth branches below keep nil so the
             // claude-cli UA set in OAuthURLProtocol is preserved.
-            return AnthropicProvider(apiKey: key, model: model, basePath: customBase, appendV1Suffix: appendV1, customUserAgent: ua ?? MinisUserAgent.default)
+            // [T-quota-passive-api-key] The quota tag lets replies' rate-limit
+            // headers land on this instance's row.
+            return AnthropicProvider(apiKey: key, model: model, basePath: customBase, appendV1Suffix: appendV1, customUserAgent: ua ?? MinisUserAgent.default, quotaInstanceId: instance.id)
         case .oauth:
             if let manualToken = ProviderKeychainHelper.loadOAuthString(instanceId: instance.id, account: "manual-oauth-token") {
-                return AnthropicProvider(manualToken: manualToken, model: model, basePath: customBase, appendV1Suffix: appendV1, customUserAgent: ua)
+                return AnthropicProvider(manualToken: manualToken, model: model, basePath: customBase, appendV1Suffix: appendV1, customUserAgent: ua, quotaInstanceId: instance.id)
             }
             let iid = instance.id
             return AnthropicProvider(
@@ -264,6 +266,9 @@ enum LLMProviderFactory {
             // load this provider's user-authored rules. Set for every OpenAI-family
             // provider, not just Mistral.
             p.providerInstanceId = instance.id
+            // [T-quota-passive-api-key] Also the quota tag: an official OpenAI key
+            // has no balance endpoint, so its rate limits are read off replies.
+            p.quotaInstanceId = instance.id
             return p
         }
         switch instance.credentialType {

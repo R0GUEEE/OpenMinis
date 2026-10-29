@@ -1356,6 +1356,9 @@ final class BrowserUseManager: NSObject, ObservableObject {
         var setNames: [String] = []
         var domainsTouched = Set<String>()
         var failures: [String] = []
+        /// [set-cookies-samesite] Per-cookie SameSite outcomes, reported below.
+        var sameSiteNotApplied: [String] = []
+        var unsupportedSameSite: [String] = []
 
         for raw in cookies {
             // Accept the field-name variants that common cookie exports use
@@ -1397,19 +1400,41 @@ final class BrowserUseManager: NSObject, ObservableObject {
             if let expires = Self.cookieNumber(raw, ["expires", "expirationDate"]), expires > 0 {
                 properties[.expires] = Date(timeIntervalSince1970: expires)
             }
-            // sameSite is accepted (Lax / Strict / None, any case) so exports
-            // that include it aren't rejected, but is NOT yet applied: HTTPCookie
-            // has no public SameSite property key honored by WKHTTPCookieStore.
-            // TODO [set-cookies-samesite]: wire through once a write path exists.
-            _ = str(["sameSite", "same_site"])
+            // [set-cookies-samesite] Applied through `HTTPCookiePropertyKey.sameSitePolicy`
+            // (public since iOS 13, values `lax` / `strict` / `none`). Exports
+            // disagree on spelling, so the value is normalised: `Lax` / `lax`,
+            // `Strict` / `strict`, `None` / `none`, plus the Cookie-Editor
+            // `no_restriction` (= None) and `unspecified` (= no policy).
+            let sameSiteRaw = str(["sameSite", "same_site", "same_site_policy"])
+            var sameSiteDropped = false
+            var sameSiteUnsupported: String?
+            if let raw = sameSiteRaw {
+                switch Self.sameSitePolicy(raw) {
+                case .policy(let policy):
+                    properties[.sameSitePolicy] = policy
+                case .unspecified:
+                    break
+                case .unsupported:
+                    sameSiteUnsupported = raw
+                }
+            }
 
             guard let cookie = HTTPCookie(properties: properties) else {
                 failures.append(name)
                 continue
             }
+            // Foundation drops a value it cannot represent, so read the policy
+            // back rather than promising something the cookie store never got.
+            if properties[.sameSitePolicy] != nil, cookie.sameSitePolicy == nil {
+                sameSiteDropped = true
+            }
             await store.setCookie(cookie)
             setNames.append(name)
             domainsTouched.insert(domain)
+            if sameSiteDropped { sameSiteNotApplied.append(name) }
+            if let sameSiteUnsupported {
+                unsupportedSameSite.append("\(name) (\(sameSiteUnsupported))")
+            }
         }
 
         if setNames.isEmpty {
@@ -1423,10 +1448,43 @@ final class BrowserUseManager: NSObject, ObservableObject {
         if !failures.isEmpty {
             text += "\nSkipped \(failures.count) invalid entry(ies): \(failures.joined(separator: ", "))"
         }
+        // [set-cookies-samesite] Say what did NOT take, instead of implying the
+        // export was applied verbatim.
+        if !unsupportedSameSite.isEmpty {
+            text += "\nSameSite value not recognised, left unset: \(unsupportedSameSite.joined(separator: ", "))"
+                + " (accepted: Lax, Strict, None)"
+        }
+        if !sameSiteNotApplied.isEmpty {
+            text += "\nSameSite could not be stored for: \(sameSiteNotApplied.joined(separator: ", "))"
+        }
         return BrowserActionResult(text: text, pageURL: pageURL.absoluteString)
     }
 
     // MARK: - Cookie field readers (format-tolerant)
+
+    /// [set-cookies-samesite] What a `sameSite` field from a cookie export means.
+    enum SameSiteValue: Equatable {
+        /// Apply this policy to the stored cookie.
+        case policy(String)
+        /// The export explicitly declines to state one ("unspecified").
+        case unspecified
+        /// Present but not a SameSite value at all.
+        case unsupported
+    }
+
+    /// Normalises the spellings real exports use. `no_restriction` is
+    /// Cookie-Editor's name for None; `unspecified` means the export carries no
+    /// policy, which is not an error.
+    static func sameSitePolicy(_ raw: String) -> SameSiteValue {
+        let s = raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        switch s {
+        case "lax": return .policy("lax")
+        case "strict": return .policy("strict")
+        case "none", "no_restriction": return .policy("none")
+        case "unspecified", "": return .unspecified
+        default: return .unsupported
+        }
+    }
 
     /// Look up `aliases` in `dict`: exact match first, then a case-insensitive
     /// scan, so `httpOnly` / `HttpOnly` / `http_only` all resolve. Returns the

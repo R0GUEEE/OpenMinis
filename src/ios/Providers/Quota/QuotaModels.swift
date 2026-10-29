@@ -91,7 +91,8 @@ struct QuotaSubject: Codable, Sendable, Identifiable, Equatable {
     enum State: Codable, Sendable, Equatable {
         /// No upstream quota signal this build can read.
         case unsupported(UnsupportedReason)
-        /// Passive-only vendor, nothing observed yet (reserved; no passive channel ships yet).
+        /// Passive-only vendor, nothing observed yet: a reply has to arrive
+        /// before there is anything to show ([T-quota-passive-api-key]).
         case awaitingFirstObservation
         case notConfigured(NotConfiguredReason)
         /// Has pools (individual pools may be stale).
@@ -106,9 +107,11 @@ struct QuotaSubject: Codable, Sendable, Identifiable, Equatable {
         case unknownVendor
         /// The provider type/credential shape does not fit any adapter.
         case providerTypeUnsupported
-        /// The vendor only exposes quota passively (headers / stream events), and
-        /// passive observation is not implemented yet. Reported honestly instead
-        /// of promising "shown after your next message".
+        /// The vendor only exposes quota passively (headers / stream events) and
+        /// no channel for it ships in this build. Reported honestly instead of
+        /// promising "shown after your next message". Vendors whose headers ARE
+        /// read do not use this: they report `.passive` capability instead
+        /// ([T-quota-passive-api-key]).
         case passiveNotImplemented
         /// Capability probe or a query answered 404 / an unreadable structure.
         case capabilityProbeFailed
@@ -486,6 +489,17 @@ struct QuotaCapability: Sendable, Equatable {
                             confidence: QuotaConfidence = .documented) -> QuotaCapability {
         QuotaCapability(active: true, source: source, confidence: confidence,
                         manualRefresh: true, unsupportedReason: nil)
+    }
+
+    /// [T-quota-passive-api-key] A vendor with no query at all whose replies
+    /// carry the figures. Nothing may be requested on its behalf, but the data
+    /// still arrives, so `unsupportedReason` stays nil: that is what separates
+    /// "nothing observed yet" from "cannot show", and it keeps the refresh
+    /// button off a screen with nothing to ask.
+    static func passive(source: QuotaSource = .officialHeaders,
+                        confidence: QuotaConfidence = .documented) -> QuotaCapability {
+        QuotaCapability(active: false, source: source, confidence: confidence,
+                        manualRefresh: false, unsupportedReason: nil)
     }
 }
 

@@ -196,7 +196,9 @@ final class AnthropicProvider: LLMProvider {
         return host == "api.anthropic.com" || host.hasSuffix(".anthropic.com")
     }
 
-    init(apiKey: String, model: LLMModel = .claudeHaiku45, basePath: String? = nil, appendV1Suffix: Bool = true, customUserAgent: String? = nil) {
+    /// - Parameter quotaInstanceId: [T-quota-passive-api-key] the instance this
+    ///   key belongs to, so replies' rate-limit headers update its quota row.
+    init(apiKey: String, model: LLMModel = .claudeHaiku45, basePath: String? = nil, appendV1Suffix: Bool = true, customUserAgent: String? = nil, quotaInstanceId: String? = nil) {
         self.model = model
         self.isClaudeCode = false
         self.betaHeaders = nil
@@ -208,13 +210,15 @@ final class AnthropicProvider: LLMProvider {
             apiKey: apiKey,
             basePath: resolvedBase,
             betaHeaders: nil,
-            httpClient: EagerStreamingHTTPClient(customUserAgent: customUserAgent)
+            httpClient: EagerStreamingHTTPClient(customUserAgent: customUserAgent,
+                                                 quotaInstanceId: quotaInstanceId)
         )
     }
 
     /// Manual token constructor: sends both `x-api-key` and `Authorization: Bearer` headers
     /// for maximum compatibility with third-party proxies and Coding Plan endpoints.
-    init(manualToken: String, model: LLMModel = .claudeHaiku45, basePath: String? = nil, appendV1Suffix: Bool = true, customUserAgent: String? = nil) {
+    /// - Parameter quotaInstanceId: see `init(apiKey:…)`.
+    init(manualToken: String, model: LLMModel = .claudeHaiku45, basePath: String? = nil, appendV1Suffix: Bool = true, customUserAgent: String? = nil, quotaInstanceId: String? = nil) {
         self.model = model
         self.isClaudeCode = false
         self.betaHeaders = nil
@@ -226,7 +230,8 @@ final class AnthropicProvider: LLMProvider {
             apiKey: manualToken,
             basePath: resolvedBase,
             betaHeaders: nil,
-            httpClient: DualAuthHTTPClient(customUserAgent: customUserAgent)
+            httpClient: DualAuthHTTPClient(customUserAgent: customUserAgent,
+                                           quotaInstanceId: quotaInstanceId)
         )
     }
 

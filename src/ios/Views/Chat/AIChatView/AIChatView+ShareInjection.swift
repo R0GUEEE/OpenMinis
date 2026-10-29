@@ -207,4 +207,36 @@ extension AIChatView {
         }
         return true
     }
+
+    /// [T-ios-autofocus-typecheck] The +1.5 s half of the auto-focus handler that
+    /// runs when a reply ends.
+    ///
+    /// Lives here rather than inline in `.onChange(of: vm.isProcessing)`: as a
+    /// nested escaping closure inside that observer it defeated the type-checker
+    /// ("unable to type-check this expression in reasonable time"), and the
+    /// guards — which have to be re-checked AFTER the delay, because a retry, a
+    /// silent sub-agent turn or a page change can land in the window — read far
+    /// better in one place.
+    ///
+    /// Every guard is a re-check, not a duplicate: the decision to try was made
+    /// 1.5 s earlier, in `isProcessing`'s observer.
+    func focusComposerAfterReplyIfAppropriate() {
+        guard !hasOverlayPresented, canRunDelayedComposerFocus("after-reply") else { return }
+        guard !vm.isProcessing, vm.promptQueue.isEmpty else { return }
+        // A retry started during the 1.5 s window would otherwise be focused by
+        // this older timer.
+        guard !vm.turnStartedByRetry else { return }
+        // Likewise a sub agent callback that landed in the gap.
+        guard !vm.turnWasSilentProgrammatic else { return }
+        // Long replies are being read, not answered: same <600 rule as before.
+        var lastAssistantLength = 0
+        if let last = vm.messages.last, last.role == .assistant {
+            for block in last.blocks {
+                lastAssistantLength += block.content.count
+            }
+        }
+        guard lastAssistantLength < 600 else { return }
+        AppLogger(category: "ContextUsageHint").info("[AutoFocus] +1.5s → inputFocused=true (lastAssistantLength=\(lastAssistantLength))")
+        inputFocused = true
+    }
 }

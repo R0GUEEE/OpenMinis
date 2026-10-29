@@ -50,6 +50,9 @@ enum QuotaInstanceDisplay: Equatable {
     /// Queried and failed, nothing cached to show.
     case failed(QuotaError)
     case pools(QuotaSubjectID)
+    /// [T-quota-passive-api-key] Passive-only vendor, no reply seen yet: there
+    /// is nothing to query, so the row explains what will make data appear.
+    case awaitingObservation
 }
 
 enum QuotaRefreshResult: Equatable {
@@ -138,7 +141,15 @@ final class QuotaStore: ObservableObject {
         ensureLoaded()
         let d = Self.descriptor(for: instance)
         let cap = QuotaAdapterRegistry.adapter(for: d).capability(for: d)
-        guard cap.active else { return .unsupported(cap.unsupportedReason ?? .providerTypeUnsupported) }
+        if !cap.active {
+            // [T-quota-passive-api-key] Passive-only: there is no request to
+            // make, so the section shows whatever replies have reported and
+            // says so until one does. A real "cannot show" keeps its reason.
+            if let reason = cap.unsupportedReason { return .unsupported(reason) }
+            guard instance.isEnabled else { return .hidden }
+            if let sid = instanceSubjects[instance.id], !pools(of: sid).isEmpty { return .pools(sid) }
+            return .awaitingObservation
+        }
         if !instance.isEnabled { return .hidden }
         if instanceNotes[instance.id] != nil { return .hidden }
         if let rec = capabilities[d.capabilityKey], rec.status == .failed,
@@ -509,35 +520,53 @@ final class QuotaStore: ObservableObject {
         QuotaSubjectID(vendor: vendor, accountKey: "instance:\(instanceId)")
     }
 
-    /// A reply from an OAuth Claude instance carried `anthropic-ratelimit-unified-*`
-    /// headers: merge them in as the same pools / windows the active query
-    /// writes, and count them as a refresh so the scheduler does not query
-    /// again within the 5-minute window.
-    /// Also used for Codex replies ([T-quota-codex-subscription]): `vendor`
-    /// says which parser applies.
-    func observeSubscriptionHeaders(instanceId: String, vendor: QuotaVendor, headers: [String: String]) {
+    /// A reply from one of the instance's own requests carried quota headers.
+    /// Merge them as the same pools / windows the active query writes, and
+    /// count them as a refresh so the scheduler does not query again within the
+    /// window. The instance's vendor decides which parser applies, so one entry
+    /// point serves every channel:
+    /// - [T-quota-claude-subscription] `anthropic-ratelimit-unified-*`
+    /// - [T-quota-codex-subscription] `x-codex-*`
+    /// - [T-quota-passive-api-key] `anthropic-ratelimit-<metric>-*` and
+    ///   `x-ratelimit-*` — these vendors have no query at all, so this is
+    ///   their only channel, and their subject is the credential itself (two
+    ///   instances on one key share the pools).
+    func observeResponseHeaders(instanceId: String, headers: [String: String]) {
         ensureLoaded()
-        guard let instance = ProviderConfigStore.shared.instance(for: instanceId), instance.isEnabled,
-              QuotaVendorDetector.vendor(for: Self.descriptor(for: instance)) == vendor else { return }
-        if loggedObservationInstances.insert(instanceId).inserted {
-            // Header names and values only (usage fractions, reset times, status);
-            // no credential is ever part of these response headers.
-            let line = headers.sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" }.joined(separator: " ")
-            logger.info("[Quota][SubscriptionHeaders] first observation vendor=\(vendor.rawValue) instance=\(instanceId.prefix(8)) \(line)")
-        }
-        let subjectId = Self.subscriptionSubject(vendor: vendor, instanceId: instanceId)
+        guard let instance = ProviderConfigStore.shared.instance(for: instanceId), instance.isEnabled else { return }
+        let vendor = QuotaVendorDetector.vendor(for: Self.descriptor(for: instance))
         let now = Date()
+        let subjectId: QuotaSubjectID
+        var maskedKey = "OAuth"
         let parsed: UpstreamQuotaSnapshot?
+
         switch vendor {
-        case .claudeSubscription:
-            parsed = ClaudeSubscriptionQuotaAdapter.parseHeaders(headers, subjectId: subjectId, now: now)
-        case .codexSubscription:
-            parsed = CodexSubscriptionQuotaAdapter.parseHeaders(headers, subjectId: subjectId, now: now)
+        case .claudeSubscription, .codexSubscription:
+            subjectId = Self.subscriptionSubject(vendor: vendor, instanceId: instanceId)
+            parsed = vendor == .claudeSubscription
+                ? ClaudeSubscriptionQuotaAdapter.parseHeaders(headers, subjectId: subjectId, now: now)
+                : CodexSubscriptionQuotaAdapter.parseHeaders(headers, subjectId: subjectId, now: now)
+        case .anthropicPlatform, .openAIPlatform:
+            // [T-quota-passive-api-key] Resolved BEFORE parsing: without a
+            // subject there is nowhere to put the pools.
+            guard let resolved = apiKeySubject(for: instance, vendor: vendor) else { return }
+            subjectId = resolved.id
+            maskedKey = resolved.maskedKey
+            parsed = vendor == .anthropicPlatform
+                ? AnthropicPlatformQuotaAdapter.parseHeaders(headers, subjectId: subjectId, now: now)
+                : OpenAIPlatformQuotaAdapter.parseHeaders(headers, subjectId: subjectId, now: now)
         default:
-            parsed = nil
+            return
+        }
+
+        if loggedObservationInstances.insert(instanceId).inserted {
+            // Header names and values only (usage fractions, limits, reset
+            // times); no credential is ever part of these response headers.
+            let line = headers.sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" }.joined(separator: " ")
+            logger.info("[Quota][Headers] first observation vendor=\(vendor.rawValue) instance=\(instanceId.prefix(8)) \(line)")
         }
         guard let snapshot = parsed else { return }
-        attach(instanceId: instanceId, to: subjectId, maskedKey: "OAuth")
+        attach(instanceId: instanceId, to: subjectId, maskedKey: maskedKey)
         QuotaMerge.ingest(snapshot, authoritative: false, pools: &pools, bindings: &bindings)
         var subject = subjects[subjectId] ?? Self.newSubject(subjectId)
         subject.lastRefresh = QuotaRefreshGate.recordObservation(subject.lastRefresh, now: now,
@@ -548,6 +577,18 @@ final class QuotaStore: ObservableObject {
             subjectId: subjectId, source: snapshot.provenance.source, adapterId: snapshot.provenance.adapterId,
             capturedAt: now, poolKeys: snapshot.pools.map(\.id))
         changed()
+    }
+
+    /// [T-quota-passive-api-key] The subject a stock API key's pools hang on:
+    /// derived from the credential itself, so two instances on one key share
+    /// them and a ROTATED key never inherits the old key's rate limits (there
+    /// is no query to re-derive this later — the next reply has to land on the
+    /// right subject the first time).
+    private func apiKeySubject(for instance: ProviderInstance,
+                               vendor: QuotaVendor) -> (id: QuotaSubjectID, maskedKey: String)? {
+        guard let credential = Self.credential(for: instance) else { return nil }
+        return (QuotaSubjectID(vendor: vendor, accountKey: QuotaAccountKey.derive(from: credential)),
+                QuotaAccountKey.mask(credential))
     }
 
     // MARK: - Scheduling
@@ -773,9 +814,14 @@ final class QuotaStore: ObservableObject {
 
 /// [T-quota-claude-subscription] Entry point for the Anthropic URLProtocols:
 /// called on the network delegate queue for every response. Filters on the
-/// calling thread and allocates nothing unless the response carries unified
-/// rate-limit headers; only then hops to the main actor.
+/// calling thread and allocates nothing unless the response carries rate-limit
+/// headers; only then hops to the main actor.
 enum QuotaObservationSink {
+    /// [T-quota-passive-api-key] Anthropic replies carry two different shapes
+    /// from the same prefix: `anthropic-ratelimit-unified-*` for an OAuth
+    /// subscription, `anthropic-ratelimit-<metric>-*` for a stock API key.
+    /// Both are collected here and the store picks the parser from the
+    /// instance's vendor — the network layer does not know which it is.
     static func recordAnthropicResponse(instanceId: String?, response: HTTPURLResponse) {
         guard let instanceId else { return }
         var found: [String: String]?
@@ -784,11 +830,27 @@ enum QuotaObservationSink {
             if found == nil { found = [:] }
             found?[key] = "\(v)"
         }
-        guard let headers = found,
-              headers.keys.contains(where: { $0.hasPrefix(ClaudeSubscriptionQuotaAdapter.headerPrefix) }) else { return }
+        guard let headers = found else { return }
         Task { @MainActor in
-            QuotaStore.shared.observeSubscriptionHeaders(instanceId: instanceId, vendor: .claudeSubscription,
-                                                         headers: headers)
+            QuotaStore.shared.observeResponseHeaders(instanceId: instanceId, headers: headers)
+        }
+    }
+
+    /// [T-quota-passive-api-key] OpenAI platform API-key replies
+    /// (OpenAIProvider: sendMessage / streamMessage / streamRaw). Codex OAuth
+    /// replies carry `x-codex-*` instead and never match this prefix.
+    static func recordOpenAIResponse(instanceId: String?, response: HTTPURLResponse) {
+        guard let instanceId else { return }
+        var found: [String: String]?
+        for (k, v) in response.allHeaderFields {
+            guard let key = (k as? String)?.lowercased(),
+                  key.hasPrefix(OpenAIPlatformQuotaAdapter.headerPrefix) else { continue }
+            if found == nil { found = [:] }
+            found?[key] = "\(v)"
+        }
+        guard let headers = found else { return }
+        Task { @MainActor in
+            QuotaStore.shared.observeResponseHeaders(instanceId: instanceId, headers: headers)
         }
     }
 
@@ -803,8 +865,7 @@ enum QuotaObservationSink {
         }
         guard let headers = found, headers.keys.contains(where: { $0.hasSuffix("-used-percent") }) else { return }
         Task { @MainActor in
-            QuotaStore.shared.observeSubscriptionHeaders(instanceId: instanceId, vendor: .codexSubscription,
-                                                         headers: headers)
+            QuotaStore.shared.observeResponseHeaders(instanceId: instanceId, headers: headers)
         }
     }
 }

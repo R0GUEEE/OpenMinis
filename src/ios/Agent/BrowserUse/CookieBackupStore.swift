@@ -71,6 +71,10 @@ final class CookieBackupStore {
         var expires: Double?
         var secure: Bool
         var httpOnly: Bool
+        /// [set-cookies-samesite] `lax` / `strict` / `none`. Optional so backups
+        /// written before this field existed still decode — a restored cookie
+        /// then simply carries no policy, as it did before.
+        var sameSite: String?
 
         var key: String { "\(domain)|\(path)|\(name)" }
 
@@ -83,11 +87,12 @@ final class CookieBackupStore {
                 attrs.append("SESSION")
             }
             if httpOnly { attrs.append("HttpOnly") }
+            if let sameSite { attrs.append("SameSite=\(sameSite)") }
             return "\(name)[\(attrs.joined(separator: " "))]"
         }
 
         init(name: String, value: String, domain: String, path: String,
-             expires: Double?, secure: Bool, httpOnly: Bool) {
+             expires: Double?, secure: Bool, httpOnly: Bool, sameSite: String? = nil) {
             self.name = name
             self.value = value
             self.domain = domain
@@ -95,6 +100,7 @@ final class CookieBackupStore {
             self.expires = expires
             self.secure = secure
             self.httpOnly = httpOnly
+            self.sameSite = sameSite
         }
 
         init(from cookie: HTTPCookie) {
@@ -105,6 +111,7 @@ final class CookieBackupStore {
             expires = cookie.expiresDate?.timeIntervalSince1970
             secure = cookie.isSecure
             httpOnly = cookie.isHTTPOnly
+            sameSite = cookie.sameSitePolicy?.rawValue
         }
 
         func toHTTPCookie() -> HTTPCookie? {
@@ -116,6 +123,11 @@ final class CookieBackupStore {
             ]
             if secure { properties[.secure] = "TRUE" }
             if httpOnly { properties[HTTPCookiePropertyKey("HttpOnly")] = "TRUE" }
+            // [set-cookies-samesite] Restore the policy the live cookie carried:
+            // a login restored as SameSite-less behaves differently on
+            // cross-site navigations, which is the state this backup exists to
+            // prevent.
+            if let sameSite { properties[.sameSitePolicy] = sameSite }
             if let expires {
                 properties[.expires] = Date(timeIntervalSince1970: expires)
             }

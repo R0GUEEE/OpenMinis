@@ -651,6 +651,11 @@ final class OpenAIProvider: LLMProvider {
 
         let (data, response) = try await URLSession.shared.data(for: request)
         let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
+        // [T-quota-passive-api-key] An API-key reply reports the key's rate
+        // limits; there is no other channel for them.
+        if let http = response as? HTTPURLResponse {
+            QuotaObservationSink.recordOpenAIResponse(instanceId: quotaInstanceId, response: http)
+        }
 
         guard (200..<300).contains(statusCode) else {
             let body = String(data: data, encoding: .utf8) ?? ""
@@ -726,6 +731,10 @@ final class OpenAIProvider: LLMProvider {
             throw error
         }
         let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
+        // [T-quota-passive-api-key] Rate limits ride on the reply, 429 included.
+        if let http = response as? HTTPURLResponse {
+            QuotaObservationSink.recordOpenAIResponse(instanceId: quotaInstanceId, response: http)
+        }
 
         if !(200..<300).contains(statusCode) {
             var body = ""
@@ -1083,6 +1092,11 @@ final class OpenAIProvider: LLMProvider {
         // subscription's windows on every reply, errors (429) included.
         if isCodexOAuth, let http = response as? HTTPURLResponse {
             QuotaObservationSink.recordCodexResponse(instanceId: quotaInstanceId, response: http)
+        }
+        // [T-quota-passive-api-key] A platform API key's rate limits ride on the
+        // same reply; a Codex OAuth reply never matches this prefix.
+        if let http = response as? HTTPURLResponse {
+            QuotaObservationSink.recordOpenAIResponse(instanceId: quotaInstanceId, response: http)
         }
 
         if !(200..<300).contains(statusCode) {

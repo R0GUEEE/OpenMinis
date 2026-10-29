@@ -588,6 +588,40 @@ private final class TokenBoxRegistry: @unchecked Sendable {
     }
 }
 
+/// [T-quota-passive-api-key] Which provider instance a session's requests
+/// belong to, for a URLProtocol that must attribute a reply's quota headers.
+///
+/// Same mechanism as `TokenBoxRegistry`, for the same reason: Foundation
+/// creates a URLProtocol per request and hands it nothing but the request, so
+/// the owning client tags its session with a header carrying a random id (the
+/// instance id itself never goes on the wire) and the protocol resolves it
+/// here, stripping the header before the request is sent.
+private final class QuotaInstanceRegistry: @unchecked Sendable {
+    static let shared = QuotaInstanceRegistry()
+    private let lock = NSLock()
+    private var instances: [String: String] = [:]
+
+    func register(instanceId: String) -> String {
+        let id = UUID().uuidString
+        lock.lock()
+        instances[id] = instanceId
+        lock.unlock()
+        return id
+    }
+
+    func deregister(id: String) {
+        lock.lock()
+        instances.removeValue(forKey: id)
+        lock.unlock()
+    }
+
+    func instanceId(for id: String) -> String? {
+        lock.lock()
+        defer { lock.unlock() }
+        return instances[id]
+    }
+}
+
 // MARK: - URLProtocol that swaps auth headers
 
 /// Idle timeout for Anthropic API requests: how long the server may send no
@@ -1603,6 +1637,10 @@ private final class EagerStreamingURLProtocol: URLProtocol, URLSessionDataDelega
 
     private lazy var innerSession: URLSession = makeInnerProtocolSession(delegate: self)
     private var innerTask: URLSessionDataTask?
+    /// [T-quota-passive-api-key] Provider instance this request belongs to
+    /// (resolved from the session's `X-Minis-Quota-Instance` tag), so a reply's
+    /// rate-limit headers are attributed to the right quota subject.
+    private var quotaInstanceId: String?
     #if DEBUG
     /// [T-ios-llmcapture-entry-crosstalk] This request instance's capture
     /// entry, so response/usage updates target it and not `_entries.last`.
@@ -1623,6 +1661,15 @@ private final class EagerStreamingURLProtocol: URLProtocol, URLSessionDataDelega
         URLProtocol.setProperty(true, forKey: "EagerHandled", in: mutable)
         RequestBodyPatcher.materializeBodyStream(mutable)
         RequestBodyPatcher.applyKeyAuthBodyPatches(to: mutable)
+
+        // [T-quota-passive-api-key] Resolve — and strip — the session's quota
+        // tag before the request goes out. Absent for Anthropic-compatible
+        // proxies that are not a stock API key (a relay's headers are not the
+        // vendor's), which is exactly when nothing should be attributed.
+        if let tag = mutable.value(forHTTPHeaderField: "X-Minis-Quota-Instance"), !tag.isEmpty {
+            mutable.setValue(nil, forHTTPHeaderField: "X-Minis-Quota-Instance")
+            quotaInstanceId = QuotaInstanceRegistry.shared.instanceId(for: tag)
+        }
 
         // Remove stale Content-Length — URLSession will recalculate from httpBody
         mutable.setValue(nil, forHTTPHeaderField: "Content-Length")
@@ -1669,6 +1716,11 @@ private final class EagerStreamingURLProtocol: URLProtocol, URLSessionDataDelega
             LastAPIRequestBody.shared.setHTTPResponse(statusCode: http.statusCode, headers: respHeaders, on: captureToken)
         }
         #endif
+        // [T-quota-passive-api-key] An API-key reply reports the key's rate
+        // limits on every response, a 429 included.
+        if let http = response as? HTTPURLResponse {
+            QuotaObservationSink.recordAnthropicResponse(instanceId: quotaInstanceId, response: http)
+        }
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
         completionHandler(.allow)
     }
@@ -1719,20 +1771,37 @@ private final class EagerStreamingURLProtocol: URLProtocol, URLSessionDataDelega
 /// for the API key authentication path.
 final class EagerStreamingHTTPClient: HTTPClient {
     private let underlying: URLSessionHTTPClientAdapter
+    /// [T-quota-passive-api-key] Registry key for this session's instance tag,
+    /// released with the client.
+    private var quotaRegistryId: String?
 
     /// - Parameter customUserAgent: when non-nil, overrides the default URLSession
     ///   `User-Agent` on every request through `httpAdditionalHeaders` (proxies that
     ///   gate on client UA). The SDK never sets User-Agent itself, so this takes effect.
-    init(customUserAgent: String? = nil) {
+    /// - Parameter quotaInstanceId: the provider instance whose quota this
+    ///   client's replies describe. Tagged with a random id in the session's
+    ///   headers and resolved by the URLProtocol, since Foundation hands a
+    ///   URLProtocol nothing but the request.
+    init(customUserAgent: String? = nil, quotaInstanceId: String? = nil) {
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = anthropicRequestIdleTimeout
         config.protocolClasses = [EagerStreamingURLProtocol.self]
+        var headers = config.httpAdditionalHeaders ?? [:]
         if let ua = customUserAgent {
-            config.httpAdditionalHeaders = (config.httpAdditionalHeaders ?? [:]).merging(
-                ["User-Agent": ua]) { _, new in new }
+            headers["User-Agent"] = ua
         }
+        if let quotaInstanceId {
+            let tag = QuotaInstanceRegistry.shared.register(instanceId: quotaInstanceId)
+            quotaRegistryId = tag
+            headers["X-Minis-Quota-Instance"] = tag
+        }
+        config.httpAdditionalHeaders = headers
         let session = URLSession(configuration: config)
         self.underlying = URLSessionHTTPClientAdapter(urlSession: session)
+    }
+
+    deinit {
+        if let quotaRegistryId { QuotaInstanceRegistry.shared.deregister(id: quotaRegistryId) }
     }
 
     func data(for request: HTTPRequest) async throws -> (Data, HTTPResponse) {
@@ -1748,18 +1817,31 @@ final class EagerStreamingHTTPClient: HTTPClient {
 /// Used for manual OAuth tokens on Anthropic-compatible proxies that may expect either header.
 final class DualAuthHTTPClient: HTTPClient {
     private let underlying: URLSessionHTTPClientAdapter
+    /// [T-quota-passive-api-key] See `EagerStreamingHTTPClient.quotaRegistryId`.
+    private var quotaRegistryId: String?
 
     /// - Parameter customUserAgent: see `EagerStreamingHTTPClient.init`.
-    init(customUserAgent: String? = nil) {
+    /// - Parameter quotaInstanceId: see `EagerStreamingHTTPClient.init`.
+    init(customUserAgent: String? = nil, quotaInstanceId: String? = nil) {
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = anthropicRequestIdleTimeout
         config.protocolClasses = [DualAuthURLProtocol.self]
+        var headers = config.httpAdditionalHeaders ?? [:]
         if let ua = customUserAgent {
-            config.httpAdditionalHeaders = (config.httpAdditionalHeaders ?? [:]).merging(
-                ["User-Agent": ua]) { _, new in new }
+            headers["User-Agent"] = ua
         }
+        if let quotaInstanceId {
+            let tag = QuotaInstanceRegistry.shared.register(instanceId: quotaInstanceId)
+            quotaRegistryId = tag
+            headers["X-Minis-Quota-Instance"] = tag
+        }
+        config.httpAdditionalHeaders = headers
         let session = URLSession(configuration: config)
         self.underlying = URLSessionHTTPClientAdapter(urlSession: session)
+    }
+
+    deinit {
+        if let quotaRegistryId { QuotaInstanceRegistry.shared.deregister(id: quotaRegistryId) }
     }
 
     func data(for request: HTTPRequest) async throws -> (Data, HTTPResponse) {
@@ -1779,6 +1861,9 @@ private final class DualAuthURLProtocol: URLProtocol, URLSessionDataDelegate {
 
     private lazy var innerSession: URLSession = makeInnerProtocolSession(delegate: self)
     private var innerTask: URLSessionDataTask?
+    /// [T-quota-passive-api-key] Provider instance this request belongs to, for
+    /// the same reason as `EagerStreamingURLProtocol.quotaInstanceId`.
+    private var quotaInstanceId: String?
     #if DEBUG
     /// [T-ios-llmcapture-entry-crosstalk] This request instance's capture
     /// entry, so response/usage updates target it and not `_entries.last`.
@@ -1794,6 +1879,12 @@ private final class DualAuthURLProtocol: URLProtocol, URLSessionDataDelegate {
     override func startLoading() {
         let mutable = (request as NSURLRequest).mutableCopy() as! NSMutableURLRequest
         URLProtocol.setProperty(true, forKey: "DualAuthHandled", in: mutable)
+
+        // [T-quota-passive-api-key] Resolve and strip the session's quota tag.
+        if let tag = mutable.value(forHTTPHeaderField: "X-Minis-Quota-Instance"), !tag.isEmpty {
+            mutable.setValue(nil, forHTTPHeaderField: "X-Minis-Quota-Instance")
+            quotaInstanceId = QuotaInstanceRegistry.shared.instanceId(for: tag)
+        }
 
         // Send both x-api-key AND Authorization: Bearer for maximum proxy compatibility.
         // MiniMax Anthropic endpoint requires x-api-key; other proxies require Authorization: Bearer.
@@ -1848,6 +1939,11 @@ private final class DualAuthURLProtocol: URLProtocol, URLSessionDataDelegate {
             LastAPIRequestBody.shared.setHTTPResponse(statusCode: http.statusCode, headers: respHeaders, on: captureToken)
         }
         #endif
+        // [T-quota-passive-api-key] An API-key reply reports the key's rate
+        // limits on every response, a 429 included.
+        if let http = response as? HTTPURLResponse {
+            QuotaObservationSink.recordAnthropicResponse(instanceId: quotaInstanceId, response: http)
+        }
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
         completionHandler(.allow)
     }

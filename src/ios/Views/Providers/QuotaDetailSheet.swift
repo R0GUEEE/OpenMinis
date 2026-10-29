@@ -67,6 +67,13 @@ struct QuotaDetailSheet: View {
                         Section {
                             Text("The provider reported no balance or quota for this key.").foregroundStyle(.secondary)
                         }
+                    case .awaitingObservation:
+                        // [T-quota-passive-api-key] Nothing to query — the sheet is
+                        // usually opened from the picker, so say what fills it in.
+                        Section {
+                            Text("This provider reports its rate limits alongside replies. Send a message to see them.")
+                                .foregroundStyle(.secondary)
+                        }
                     case .hidden:
                         Section { Text("Add an API key to see the balance.").foregroundStyle(.secondary) }
                     }

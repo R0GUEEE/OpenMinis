@@ -532,4 +532,72 @@ extension AIChatView {
                       Self.composerDefaultHeight), composerMaxHeight)
             : Self.composerDefaultHeight
     }
+
+    // MARK: - Keyboard / turn-end observers
+
+    /// [T-ipad-floating-keyboard] Tracks whether the iPad keyboard is floating,
+    /// so `.ignoresSafeArea(.keyboard)` can be turned on for that state.
+    ///
+    /// [T-ios-autofocus-typecheck] Extracted from the `.onReceive` closure in
+    /// `body`: a `body` this long has to stay cheap for the type-checker, and
+    /// every statement left inline costs inference work for the whole chain.
+    func handleKeyboardFrameChange(_ note: Notification) {
+        guard UIDevice.current.userInterfaceIdiom == .pad,
+              let frame = note.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect else { return }
+        // Keyboard frames are in screen coordinates; with Stage Manager the
+        // window is smaller than the screen, so compare with the screen.
+        let screen = (note.object as? UIScreen)
+            ?? UIApplication.shared.connectedScenes.compactMap { ($0 as? UIWindowScene)?.screen }.first
+        guard let bounds = screen?.bounds else { return }
+        let undocked = KeyboardDockRules.isUndocked(keyboardFrame: frame, screenBounds: bounds)
+        guard undocked != keyboardUndocked else { return }
+        keyboardUndocked = undocked
+        let keyboardStateText = undocked ? "undocked/floating — composer stays put" : "docked or hidden — normal avoidance"
+        let floatingKeyboardMessage = "[FloatingKeyboard] keyboard " + keyboardStateText
+            + " frame=" + String(describing: frame) + " screen=" + String(describing: bounds)
+        AppLogger(category: "InputBarLayout").info(floatingKeyboardMessage)
+    }
+
+    /// [T-ios-autofocus-typecheck] The end-of-turn auto-focus handler, moved out
+    /// of `.onChange(of: vm.isProcessing)` in `body` for the same reason as
+    /// `handleKeyboardFrameChange`. Behaviour is unchanged — see the comments
+    /// carried over from the original inline version.
+    func handleProcessingChanged(_ processing: Bool) {
+        guard !processing else { return }
+        // Reply reading is handled INCREMENTALLY during streaming (the SSE loop
+        // splits into sentences/titles + tool announcements and queues them as
+        // they arrive — see speakQueued/extractNewSentences). No whole-reply
+        // speak here; that would double-read everything.
+        // [T-keyboard-auto-pop default flip] Gate behind a Settings toggle.
+        // Default ON — most users want the composer ready for a follow-up
+        // immediately. `object(forKey:)` lets us distinguish "never toggled"
+        // (nil → use new ON default) from "explicitly set OFF" (NSNumber(false)
+        // → respect).
+        let autoFocusEnabled = (UserDefaults.standard.object(forKey: "chat.autoFocusAfterReply") as? Bool) ?? true
+        guard autoFocusEnabled else { return }
+        // [T-ios-retry-keyboard] Don't treat the end of a RETRIED turn as "a
+        // reply arrived": the retry's own failure flips isProcessing back to
+        // false and would otherwise pop the keyboard seconds after a tap that
+        // only meant "try that again". Scoped to the turn's ORIGIN, not its
+        // outcome — a fresh send that fails still auto-focuses, deliberately.
+        // Consumed (not just read) so it governs exactly one turn.
+        let wasRetry = vm.turnStartedByRetry
+        vm.turnStartedByRetry = false
+        guard !wasRetry else { return }
+        // [T-subagent-callback-no-keyboard] Nor the end of a turn the USER never
+        // started: a background sub agent reporting progress arrives as a silent
+        // programmatic prompt and drives a full parent turn. Consumed like
+        // `wasRetry`.
+        let wasSilent = vm.turnWasSilentProgrammatic
+        vm.turnWasSilentProgrammatic = false
+        guard !wasSilent else { return }
+        if GCKeyboard.coalesced != nil {
+            AppLogger(category: "ContextUsageHint").info("[AutoFocus] immediate (hardware keyboard) → inputFocused=true")
+            inputFocused = true
+        } else {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                focusComposerAfterReplyIfAppropriate()
+            }
+        }
+    }
 }

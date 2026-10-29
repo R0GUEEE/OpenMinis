@@ -1,6 +1,6 @@
 # Fork additions (iOS)
 
-This fork adds six things on top of upstream OpenMinis. All of them are iOS-first;
+This fork adds eight things on top of upstream OpenMinis. All of them are iOS-first;
 the Android tree is untouched.
 
 ## 1. Agent plugins  `[T-agent-plugins]`
@@ -137,6 +137,99 @@ permissions match exactly.
   block and a cURL smoke test.
 * Source: `src/ios/Agent/MCPServer/MCPHostedServer.swift`,
   `src/ios/Views/Settings/MCPHostSettingsView.swift`.
+
+## 7. Rate limits for stock Claude / OpenAI API keys  `[T-quota-passive-api-key]`
+
+Upstream reports quota for an *OAuth subscription* (Pro/Max, ChatGPT) but shows
+nothing at all for a plain API key: `openAIPlatform` and `anthropicPlatform` were
+mapped to "only reports quota alongside replies; showing it isn't supported yet".
+
+Both vendors publish the key's throughput limits on **every** response, a 429
+included, so there is nothing to query — only something to read:
+
+* `anthropic-ratelimit-{requests,tokens,input-tokens,output-tokens}-{limit,remaining,reset}`
+  (`reset` an RFC 3339 timestamp);
+* `x-ratelimit-{limit,remaining,reset}-{requests,tokens}`
+  (`reset` a Go duration: `1s`, `20ms`, `6m0s`).
+
+What that gives you:
+
+* **A row that fills itself in.** No request of Minis's own, no polling,
+  foreground-only like the rest of quota. Until the first reply the section says
+  "This provider reports its rate limits alongside replies. Send a message to see
+  them." and offers **no refresh button**, because there is nothing to ask.
+* **Rate limits stay rate limits.** Each metric is its own `.rateLimit` pool on a
+  rolling minute — `Requests 980 / 1000`, `Input tokens 39 000 / 40 000` — a kind
+  that never headlines the account and never draws a percentage bar. A key at
+  200-of-200 requests-per-minute is not "plenty of credit".
+* **A 429 reads as rate limited**, not as an exhausted balance: remaining `0`
+  with a reset still in the future is the `.rateLimited` state.
+* **Two instances on one key share the pools** — the subject is the hashed
+  credential, exactly as for the querying vendors.
+* **Nothing is guessed.** A metric without a usable `limit`/`remaining` is
+  dropped, an unrecognised metric name is dropped rather than mislabelled, and a
+  subscription's `anthropic-ratelimit-unified-*` / `x-codex-*` headers are never
+  read as platform limits.
+* Gemini API keys move to "doesn't offer a balance or quota lookup": that API
+  reports neither a balance nor rate-limit headers, so the old wording overpromised.
+* Plumbing: the Anthropic API-key and manual-token `URLProtocol`s tag their
+  session with `X-Minis-Quota-Instance` (a random id, resolved and stripped
+  before the request leaves) because Foundation hands a `URLProtocol` nothing but
+  the request; the OpenAI provider reads the headers off the response it already
+  holds, in `sendMessage`, `streamMessage` and `streamRaw`.
+* Source: `src/ios/Providers/Quota/QuotaAdapters.swift` (`PassiveRateLimitHeaders`,
+  `AnthropicPlatformQuotaAdapter`, `OpenAIPlatformQuotaAdapter`),
+  `src/ios/Providers/Quota/QuotaStore.swift` (`observeResponseHeaders`),
+  `src/ios/Providers/Anthropic/OAuthHTTPClient.swift`.
+* Tests: `src/ios/MinisTests/Standalone/ProviderQuotaTests.swift`.
+
+## 8. `set_cookies` keeps SameSite, and the backup restores it  `[set-cookies-samesite]`
+
+The browser tool documented `sameSite` as "accepted but NOT applied: HTTPCookie
+has no public SameSite property key honored by WKHTTPCookieStore". That premise
+was wrong — `HTTPCookiePropertyKey.sameSitePolicy` (`NSHTTPCookieSameSitePolicy`)
+has been public since iOS 13, and `HTTPCookie` round-trips `lax` / `strict` /
+`none`. So a Playwright / EditThisCookie export restored cookies with the right
+expiry, HttpOnly and Secure but no SameSite at all.
+
+* Every spelling real exports emit is normalised: `Lax`/`lax`, `Strict`, `None`,
+  Cookie-Editor's `no_restriction` (= None), and `unspecified` (no policy stated —
+  not an error). Anything else is reported back to the caller instead of being
+  dropped silently.
+* The policy is read back off the built `HTTPCookie`; when Foundation did not keep
+  it, the result says which cookies lost it instead of implying the export was
+  applied verbatim.
+* `CookieBackupStore` records each live cookie's policy and writes it back on
+  restore, so an ITP-evicted or session-expired login comes back with the same
+  cross-site behaviour it had. Backups written before the field existed still
+  decode (it is optional), and the restore log names `SameSite=` so a missing
+  policy is visible.
+* Source: `src/ios/Agent/BrowserUse/BrowserUseManager.swift` (`sameSitePolicy(_:)`),
+  `src/ios/Agent/BrowserUse/CookieBackupStore.swift`.
+* Tests: `src/ios/MinisTests/Standalone/SetCookiesSameSiteTests.swift` — the
+  normaliser is extracted from the shipping source and compiled, so it cannot
+  drift.
+
+## Build note: `AIChatView.body`  `[T-ios-body-typecheck]`
+
+The 1.16 tree did not compile at all: `AIChatView.body` failed with "the compiler
+is unable to type-check this expression in reasonable time" — on `body` itself,
+not on one sub-expression. The ~80-modifier chain plus every closure written
+inline in it exceeded the type-checker's budget. The scene-phase handler had
+already been moved out; the rest now follow it:
+
+* `.onAppear` → `handleAppear()`, `.onDisappear` → `handleDisappear()`;
+* the iPad floating-keyboard `onReceive` → `handleKeyboardFrameChange(_:)`;
+* the end-of-turn auto-focus `onChange(of: vm.isProcessing)` →
+  `handleProcessingChanged(_:)`, whose delayed half is
+  `focusComposerAfterReplyIfAppropriate()`;
+* the long `+`-concatenated log messages are built with `+=`;
+* `keyboardUndocked` is no longer `private`, because its only writer now lives in
+  the `AIChatView+ComposerControls.swift` extension.
+
+Behaviour is unchanged. One latent bug in that block was fixed on the way:
+`AlwaysOnController.chatAppeared(key:)` takes an optional, and the in-flight
+refactor assigned `vm.draftId` (optional) to a non-optional local.
 
 ## Building this fork
 

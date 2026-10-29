@@ -299,8 +299,17 @@ enum QuotaAdapterRegistry {
             return ClaudeSubscriptionQuotaAdapter()
         case .codexSubscription:
             return CodexSubscriptionQuotaAdapter()
-        case .openAIPlatform, .anthropicPlatform, .geminiAPIKey:
-            return UnsupportedQuotaAdapter(vendor: vendor, reason: .passiveNotImplemented)
+        case .openAIPlatform:
+            // [T-quota-passive-api-key] No balance endpoint; the key's rate
+            // limits ride on every reply's `x-ratelimit-*` headers.
+            return OpenAIPlatformQuotaAdapter()
+        case .anthropicPlatform:
+            // [T-quota-passive-api-key] Same shape on `anthropic-ratelimit-*`.
+            return AnthropicPlatformQuotaAdapter()
+        case .geminiAPIKey:
+            // The Gemini API reports neither a balance nor rate-limit headers on
+            // a reply: nothing to query and nothing to observe.
+            return UnsupportedQuotaAdapter(vendor: vendor, reason: .vendorHasNoQuotaAPI)
         case .antigravity:
             return UnsupportedQuotaAdapter(vendor: vendor, reason: .passiveNotImplemented)
         case .xAI, .xiaomiMiMo, .openCode:
@@ -824,6 +833,198 @@ struct ClaudeSubscriptionQuotaAdapter: ProviderQuotaAdapter {
         if let d = f.date(from: s) { return d }
         f.formatOptions = [.withInternetDateTime]
         return f.date(from: s)
+    }
+}
+
+// MARK: - API-key platforms (Claude / OpenAI): passive rate-limit headers
+
+/// [T-quota-passive-api-key] A stock Claude or OpenAI API key has no balance
+/// or quota endpoint — in particular no prepaid balance to read. What the
+/// vendors DO report, on every reply including a 429, is the key's own
+/// throughput limits. Those arrive passively: no extra request, no polling,
+/// nothing to schedule.
+///
+/// They are written as `.rateLimit` pools, deliberately a kind that never
+/// headlines the account and never draws a progress bar — a requests-per-
+/// minute ceiling is throughput, not consumable quota (design §4.1), and a
+/// 200-of-200-minutes-left reading is not "plenty of credit".
+///
+/// The two vendors report the same six numbers with the words in a different
+/// order, which is the only difference the parsers have to know about:
+/// - Anthropic: `anthropic-ratelimit-<metric>-{limit,remaining,reset}`,
+///   `reset` an RFC 3339 timestamp;
+/// - OpenAI:    `x-ratelimit-{limit,remaining,reset}-<metric>`,
+///   `reset` a Go duration ("6m0s").
+enum PassiveRateLimitHeaders {
+    /// The metrics both vendors report, and how each is labelled / unit-tagged.
+    /// An unrecognised metric is skipped rather than guessed at: a pool whose
+    /// unit is a lie is worse than a pool that is missing.
+    static func spec(forMetric raw: String) -> (family: String, label: String, unit: QuotaUnit)? {
+        switch raw {
+        case "requests": return ("rate:requests", String(localized: "Requests"), .rateLimit(.requests))
+        case "tokens": return ("rate:tokens", String(localized: "Tokens"), .rateLimit(.tokens))
+        case "input-tokens": return ("rate:input-tokens", String(localized: "Input tokens"), .rateLimit(.inputTokens))
+        case "output-tokens": return ("rate:output-tokens", String(localized: "Output tokens"), .rateLimit(.outputTokens))
+        default: return nil
+        }
+    }
+
+    static let fields = ["limit", "remaining", "reset"]
+
+    /// Groups a reply's headers into `metric → field → raw value`.
+    ///
+    /// `fieldLast` says which side of the metric the field sits on. Splitting on
+    /// the FIRST dash (OpenAI) or the LAST one (Anthropic) keeps hyphenated
+    /// metric names (`input-tokens`) intact; an unknown field is dropped, which
+    /// is what leaves a Claude subscription's `unified-*` window headers alone.
+    static func groups(_ headers: [String: String], prefix: String,
+                       fieldLast: Bool) -> [String: [String: String]] {
+        var out: [String: [String: String]] = [:]
+        for (rawKey, value) in headers {
+            let key = rawKey.lowercased()
+            guard key.hasPrefix(prefix) else { continue }
+            let rest = String(key.dropFirst(prefix.count))
+            let metric: String
+            let field: String
+            if fieldLast {
+                guard let i = rest.lastIndex(of: "-") else { continue }
+                metric = String(rest[rest.startIndex..<i])
+                field = String(rest[rest.index(after: i)...])
+            } else {
+                guard let i = rest.firstIndex(of: "-") else { continue }
+                field = String(rest[rest.startIndex..<i])
+                metric = String(rest[rest.index(after: i)...])
+            }
+            guard fields.contains(field) else { continue }
+            out[metric, default: [:]][field] = value
+        }
+        return out
+    }
+
+    /// One pool per metric that reported a usable `limit` AND `remaining`.
+    /// A metrics-per-minute window is one rolling minute; `reset` becomes an
+    /// absolute date through the caller's format-specific parser.
+    static func snapshot(_ groups: [String: [String: String]], subjectId: QuotaSubjectID,
+                         provenance: QuotaProvenance, now: Date,
+                         resetDate: (String) -> Date?) -> UpstreamQuotaSnapshot? {
+        var pools: [QuotaPool] = []
+        var bindings: [QuotaPoolBinding] = []
+        for metric in groups.keys.sorted() {
+            guard let spec = spec(forMetric: metric), let f = groups[metric],
+                  let limit = f["limit"].flatMap({ QuotaDecimalParser.parse(string: $0) }),
+                  let remaining = f["remaining"].flatMap({ QuotaDecimalParser.parse(string: $0) }),
+                  limit > 0, remaining >= 0 else { continue }
+            let window = QuotaWindow(
+                id: "1m", duration: 60, isRolling: true,
+                amounts: QuotaAmounts(total: limit, used: max(0, limit - remaining), remaining: remaining),
+                resetsAt: f["reset"].flatMap(resetDate),
+                observedAt: now, provenance: provenance)
+            let key = QuotaPoolKey(subject: subjectId, family: spec.family)
+            pools.append(QuotaPool(id: key, subjectId: subjectId, kind: .rateLimit, unit: spec.unit,
+                                   vendorLabel: spec.label, amounts: nil, windows: [window],
+                                   verdict: nil, unlimited: false, provenance: provenance, observedAt: now))
+            // Documented as applying to every request made with the credential.
+            bindings.append(QuotaPoolBinding(poolKey: key, target: .subject, evidence: .vendorDocumented))
+        }
+        guard !pools.isEmpty else { return nil }
+        return UpstreamQuotaSnapshot(id: UUID(), subjectId: subjectId, provenance: provenance, capturedAt: now,
+                                     serverClockOffset: nil, plan: nil, pools: pools, bindings: bindings,
+                                     accountAvailable: nil)
+    }
+
+    /// OpenAI's `reset` values are Go durations: "1s", "20ms", "6m0s", "1h2m3.5s".
+    /// Whole-string only — a malformed value yields nil, never a wrong date.
+    static func parseDuration(_ raw: String) -> TimeInterval? {
+        let s = raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !s.isEmpty else { return nil }
+        var total: TimeInterval = 0
+        var index = s.startIndex
+        var sawUnit = false
+        while index < s.endIndex {
+            var number = ""
+            while index < s.endIndex, s[index].isNumber || s[index] == "." {
+                number.append(s[index])
+                index = s.index(after: index)
+            }
+            var unit = ""
+            while index < s.endIndex, s[index].isLetter {
+                unit.append(s[index])
+                index = s.index(after: index)
+            }
+            guard !number.isEmpty, let value = Double(number), value >= 0 else { return nil }
+            let scale: TimeInterval
+            switch unit {
+            case "h": scale = 3600
+            case "m": scale = 60
+            case "s": scale = 1
+            case "ms": scale = 0.001
+            case "us": scale = 0.000001
+            case "ns": scale = 0.000000001
+            default: return nil
+            }
+            total += value * scale
+            sawUnit = true
+        }
+        return sawUnit ? total : nil
+    }
+}
+
+/// [T-quota-passive-api-key] Claude API key: rate limits only, no query. The
+/// console page stays linked for the spend the key has produced.
+struct AnthropicPlatformQuotaAdapter: ProviderQuotaAdapter {
+    var adapterId: String { "anthropic.api-key-headers" }
+    var vendor: QuotaVendor { .anthropicPlatform }
+    static let headerPrefix = "anthropic-ratelimit-"
+
+    func capability(for d: QuotaInstanceDescriptor) -> QuotaCapability {
+        // An OAuth instance of this provider is `.claudeSubscription`, which has
+        // its own adapter; reaching here with a token means the shape is unknown.
+        d.isOAuth ? .unsupported(.providerTypeUnsupported) : .passive()
+    }
+
+    func fetch(_ ctx: QuotaFetchContext) async throws -> QuotaFetchOutcome {
+        // No request is ever made on a passive adapter's behalf.
+        throw QuotaFetchError(kind: .unsupportedResponse, detail: "rate limits are observed, not queried")
+    }
+
+    static func parseHeaders(_ headers: [String: String], subjectId: QuotaSubjectID,
+                             adapterId: String = "anthropic.api-key-headers",
+                             now: Date) -> UpstreamQuotaSnapshot? {
+        let groups = PassiveRateLimitHeaders.groups(headers, prefix: headerPrefix, fieldLast: true)
+        let prov = QuotaProvenance(source: .officialHeaders, confidence: .documented,
+                                   adapterId: adapterId, endpoint: "response headers", relayHost: nil)
+        return PassiveRateLimitHeaders.snapshot(groups, subjectId: subjectId, provenance: prov, now: now,
+                                                resetDate: ClaudeSubscriptionQuotaAdapter.parseISODate)
+    }
+}
+
+/// [T-quota-passive-api-key] OpenAI platform API key: rate limits only, no
+/// query. `x-codex-*` belongs to the ChatGPT subscription and is never read
+/// here — the prefix does not match.
+struct OpenAIPlatformQuotaAdapter: ProviderQuotaAdapter {
+    var adapterId: String { "openai.api-key-headers" }
+    var vendor: QuotaVendor { .openAIPlatform }
+    static let headerPrefix = "x-ratelimit-"
+
+    func capability(for d: QuotaInstanceDescriptor) -> QuotaCapability {
+        d.isOAuth ? .unsupported(.providerTypeUnsupported) : .passive()
+    }
+
+    func fetch(_ ctx: QuotaFetchContext) async throws -> QuotaFetchOutcome {
+        throw QuotaFetchError(kind: .unsupportedResponse, detail: "rate limits are observed, not queried")
+    }
+
+    static func parseHeaders(_ headers: [String: String], subjectId: QuotaSubjectID,
+                             adapterId: String = "openai.api-key-headers",
+                             now: Date) -> UpstreamQuotaSnapshot? {
+        let groups = PassiveRateLimitHeaders.groups(headers, prefix: headerPrefix, fieldLast: false)
+        let prov = QuotaProvenance(source: .officialHeaders, confidence: .documented,
+                                   adapterId: adapterId, endpoint: "response headers", relayHost: nil)
+        return PassiveRateLimitHeaders.snapshot(groups, subjectId: subjectId, provenance: prov, now: now,
+                                                resetDate: { raw in
+                                                    PassiveRateLimitHeaders.parseDuration(raw)
+                                                        .map { now.addingTimeInterval($0) }
+                                                })
     }
 }
 

@@ -744,6 +744,84 @@ t("prepaid short text is a balance, never a percent",
   QuotaFormat.shortText(pool: cny, status: QuotaStatusRules.poolStatus(cny, now: now), locale: en).map { $0.hasPrefix("Balance ") && !$0.contains("%") } == true)
 t("percent under 10 keeps one decimal", QuotaFormat.percent(dec("4.25")) == "4.3%" && QuotaFormat.percent(81) == "81%")
 
+// ── [T-quota-passive-api-key] Rate-limit headers of a stock API key ────
+print("— API-key rate-limit headers")
+let apiKey = "abcd1234abcd1234"
+let anthropicSub = QuotaSubjectID(vendor: .anthropicPlatform, accountKey: apiKey)
+let anthropicHeaders = [
+    "anthropic-ratelimit-requests-limit": "1000",
+    "anthropic-ratelimit-requests-remaining": "980",
+    "anthropic-ratelimit-requests-reset": "2027-01-15T08:00:00Z",
+    "anthropic-ratelimit-input-tokens-limit": "40000",
+    "anthropic-ratelimit-input-tokens-remaining": "39000",
+]
+let aSnap = AnthropicPlatformQuotaAdapter.parseHeaders(anthropicHeaders, subjectId: anthropicSub, now: now)
+t("Anthropic: one pool per reported metric", aSnap?.pools.count == 2)
+let reqPool = aSnap?.pools.first { $0.id.rawValue.hasSuffix(":rate:requests") }
+t("Anthropic: the requests pool is a rateLimit pool on a rolling minute",
+  reqPool?.kind == .rateLimit && reqPool?.windows.first?.id == "1m"
+    && reqPool?.windows.first?.duration == 60 && reqPool?.windows.first?.isRolling == true)
+t("Anthropic: limit / used / remaining carried, remaining never negative",
+  reqPool?.windows.first?.amounts == QuotaAmounts(total: 1000, used: 20, remaining: 980))
+t("Anthropic: the RFC 3339 reset becomes the window's reset date",
+  reqPool?.windows.first?.resetsAt == ClaudeSubscriptionQuotaAdapter.parseISODate("2027-01-15T08:00:00Z"))
+t("Anthropic: the input-token pool keeps its own metric",
+  aSnap?.pools.first { $0.id.rawValue.hasSuffix(":rate:input-tokens") }?.unit == .rateLimit(.inputTokens))
+t("Anthropic: provenance is the vendor's own headers, documented",
+  reqPool?.provenance.source == .officialHeaders && reqPool?.provenance.confidence == .documented)
+t("Anthropic: bound account-wide — a rate limit applies to every call with the key",
+  aSnap?.bindings.first?.target == .subject && aSnap?.bindings.first?.evidence == .vendorDocumented)
+t("Anthropic: a metric without `remaining` is skipped, not guessed",
+  AnthropicPlatformQuotaAdapter.parseHeaders(["anthropic-ratelimit-tokens-limit": "100"],
+                                             subjectId: anthropicSub, now: now) == nil)
+t("Anthropic: subscription `unified-*` windows are NOT read as API-key limits",
+  AnthropicPlatformQuotaAdapter.parseHeaders(
+      ["anthropic-ratelimit-unified-5h-utilization": "0.2",
+       "anthropic-ratelimit-unified-5h-reset": "1800003600"],
+      subjectId: anthropicSub, now: now) == nil)
+t("Anthropic: an unrecognised metric is dropped rather than mislabelled",
+  AnthropicPlatformQuotaAdapter.parseHeaders(
+      ["anthropic-ratelimit-batches-limit": "10", "anthropic-ratelimit-batches-remaining": "9"],
+      subjectId: anthropicSub, now: now) == nil)
+t("Anthropic: a limit of 0 is unusable data, not a pool",
+  AnthropicPlatformQuotaAdapter.parseHeaders(
+      ["anthropic-ratelimit-requests-limit": "0", "anthropic-ratelimit-requests-remaining": "0"],
+      subjectId: anthropicSub, now: now) == nil)
+t("rate limits never headline the account and never draw a bar",
+  reqPool.map { QuotaHeadline.pick([$0], now: now) == nil && QuotaBarRules.poolFraction($0) == nil } == true)
+
+let openAISub = QuotaSubjectID(vendor: .openAIPlatform, accountKey: apiKey)
+let openAIHeaders = [
+    "x-ratelimit-limit-requests": "500",
+    "x-ratelimit-remaining-requests": "499",
+    "x-ratelimit-reset-requests": "6m0s",
+    "x-ratelimit-limit-tokens": "200000",
+    "x-ratelimit-remaining-tokens": "199000",
+    "x-ratelimit-reset-tokens": "1s",
+]
+let oSnap = OpenAIPlatformQuotaAdapter.parseHeaders(openAIHeaders, subjectId: openAISub, now: now)
+t("OpenAI: one pool per metric", oSnap?.pools.count == 2)
+t("OpenAI: a Go duration becomes now + duration",
+  oSnap?.pools.first { $0.id.rawValue.hasSuffix(":rate:requests") }?.windows.first?.resetsAt
+    == now.addingTimeInterval(360))
+t("OpenAI: '1s' and '20ms' parse", PassiveRateLimitHeaders.parseDuration("1s") == 1
+    && PassiveRateLimitHeaders.parseDuration("20ms") == 0.02)
+t("OpenAI: '1h2m3s' sums its parts", PassiveRateLimitHeaders.parseDuration("1h2m3s") == 3723)
+t("OpenAI: a malformed duration is nil, never 0",
+  PassiveRateLimitHeaders.parseDuration("6 minutes") == nil
+    && PassiveRateLimitHeaders.parseDuration("") == nil
+    && PassiveRateLimitHeaders.parseDuration("soon") == nil)
+t("OpenAI: an empty remaining of 0 with a live reset reads as rate limited, not exhausted",
+  { let h = ["x-ratelimit-limit-requests": "500", "x-ratelimit-remaining-requests": "0",
+             "x-ratelimit-reset-requests": "30s"]
+    guard let p = OpenAIPlatformQuotaAdapter.parseHeaders(h, subjectId: openAISub, now: now)?.pools.first
+    else { return false }
+    return QuotaStatusRules.poolStatus(p, now: now).status == .rateLimited }())
+t("OpenAI: `x-codex-*` subscription headers are not read as platform limits",
+  OpenAIPlatformQuotaAdapter.parseHeaders(
+      ["x-codex-primary-used-percent": "42", "x-codex-primary-window-minutes": "300"],
+      subjectId: openAISub, now: now) == nil)
+
 print("HARNESS failures=\(hFailures)")
 exit(hFailures == 0 ? 0 : 1)
 """#
@@ -812,10 +890,22 @@ check("Claude OAuth replies feed the passive sink (OAuthURLProtocol didReceive r
       && oauthHTTP.contains("quotaInstanceId = tokenBox.quotaInstanceId"))
 check("Codex replies feed the passive sink (streamRaw, errors included)",
       openaiProv.contains("if isCodexOAuth, let http = response as? HTTPURLResponse {\n            QuotaObservationSink.recordCodexResponse(instanceId: quotaInstanceId, response: http)"))
-check("both factories tag Claude and Codex OAuth providers with their instance",
-      factory.contains("quotaInstanceId: iid") && agentFactory.contains("quotaInstanceId: iid")
+// [T-quota-passive-api-key] Both OAuth taggings live in the provider factory;
+// the agent factory builds every provider through it, so it tags nothing itself.
+check("OAuth tagging lives in LLMProviderFactory; the agent factory delegates to it",
+      factory.contains("quotaInstanceId: iid")
       && factory.components(separatedBy: ".quotaInstanceId = iid").count - 1 == 2
-      && agentFactory.components(separatedBy: ".quotaInstanceId = iid").count - 1 == 2)
+      && agentFactory.contains("LLMProviderFactory.makeOpenAIProvider(instance: instance, model: entry.model)")
+      && agentFactory.contains("LLMProviderFactory.makeAnthropicProvider(instance: instance, model: entry.model)")
+      && !agentFactory.contains(".quotaInstanceId = iid"))
+check("stock API keys are tagged too: Anthropic on its HTTP client, OpenAI in configure",
+      factory.contains("quotaInstanceId: instance.id") && factory.contains("p.quotaInstanceId = instance.id"))
+check("the Anthropic API-key and manual-token protocols feed the same sink as the OAuth one",
+      oauthHTTP.components(separatedBy: "QuotaObservationSink.recordAnthropicResponse(instanceId: quotaInstanceId, response: http)").count - 1 == 3
+      && oauthHTTP.contains("X-Minis-Quota-Instance")
+      && oauthHTTP.contains("quotaInstanceId = QuotaInstanceRegistry.shared.instanceId(for: tag)"))
+check("the OpenAI provider feeds the sink from every reply path (send, stream, streamRaw)",
+      openaiProv.components(separatedBy: "QuotaObservationSink.recordOpenAIResponse(").count - 1 == 3)
 check("subscription subjects keyed by instance (token rotates), token fetched only after the gates",
       store.contains("Self.subscriptionSubject(vendor: adapter.vendor, instanceId: instanceId)")
       && store.contains("guard let credential = await credentialSource() else {"))
@@ -823,6 +913,20 @@ check("header observation counts as a refresh (recordObservation) and merges non
       store.contains("QuotaRefreshGate.recordObservation(subject.lastRefresh, now: now,") && store.contains("QuotaMerge.ingest(snapshot, authoritative: false"))
 check("the sink allocates nothing unless the reply carries usage headers",
       store.contains("guard let key = (k as? String)?.lowercased(), key.hasPrefix(\"anthropic-ratelimit-\")"))
+// [T-quota-passive-api-key] A vendor with no query reports a passive capability
+// (no reason), so the row says "send a message" instead of offering a refresh
+// that could never return anything.
+let adapters = source("Providers/Quota/QuotaAdapters.swift")
+check("stock API-key vendors get a passive capability, not an unsupported reason",
+      adapters.contains("return OpenAIPlatformQuotaAdapter()") && adapters.contains("return AnthropicPlatformQuotaAdapter()")
+      && adapters.contains(".passive()") && !adapters.contains(".openAIPlatform, .anthropicPlatform"))
+check("passive: a passive capability carries no unsupported reason",
+      source("Providers/Quota/QuotaModels.swift").contains("static func passive(source: QuotaSource = .officialHeaders,"))
+check("passive: the section shows 'awaiting observation' until a reply arrives, and no refresh button",
+      store.contains("return .awaitingObservation") && section.contains("case .awaitingObservation: return false")
+      && section.contains("This provider reports its rate limits alongside replies"))
+check("passive: the store tells the parsers apart by the instance's vendor",
+      store.contains("case .anthropicPlatform, .openAIPlatform:") && store.contains("apiKeySubject(for: instance, vendor: vendor)"))
 let hints = source("Views/Providers/QuotaPickerHints.swift")
 let sheet = source("Views/Providers/QuotaDetailSheet.swift")
 check("pill: gray capsule in the picker's tag style, with a chevron",

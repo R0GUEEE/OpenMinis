@@ -126,6 +126,12 @@ struct ProviderQuotaSection: View {
             Text("The provider reported no balance or quota for this key.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
+        case .awaitingObservation:
+            // [T-quota-passive-api-key] No request can produce this figure; the
+            // next reply from the provider will.
+            Text("This provider reports its rate limits alongside replies. Send a message to see them.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
         case .failed(let err):
             Label {
                 Text(Self.message(for: err))
@@ -157,6 +163,9 @@ struct ProviderQuotaSection: View {
     private func canRefresh(_ display: QuotaInstanceDisplay) -> Bool {
         switch display {
         case .hidden: return false
+        // [T-quota-passive-api-key] Nothing to ask: the data arrives with the
+        // provider's replies, so a refresh button would be a lie.
+        case .awaitingObservation: return false
         case .unsupported(let reason): return reason == .capabilityProbeFailed
         default: return true
         }
