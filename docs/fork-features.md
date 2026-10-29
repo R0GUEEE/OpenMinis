@@ -1,6 +1,6 @@
 # Fork additions (iOS)
 
-This fork adds nine things on top of upstream OpenMinis. All of them are iOS-first;
+This fork adds eleven things on top of upstream OpenMinis. All of them are iOS-first;
 the Android tree is untouched.
 
 ## 1. Agent plugins  `[T-agent-plugins]`
@@ -264,6 +264,63 @@ startup crash with no way out for the user.
 * Tests: `src/ios/MinisTests/Standalone/AppGroupFallbackTests.swift` — the store
   is compiled as shipped, and the suite fails if any app source force-unwraps a
   group lookup again.
+
+
+## 10. Plugin import that works, and a marketplace  `[T-plugin-import-robust]` `[T-plugin-marketplace]`
+
+**Import.** `Import .zip` and `Import Folder` were two menu entries deciding
+what the picked item was. Picking a zip under "folder" (or the reverse) failed
+with "plugin.json not found", and an item owned by another app's FileProvider
+(Downloads in Files, iCloud Drive, Dropbox) was read uncoordinated — which fails
+outright on providers that only materialise on demand.
+
+* One entry, **Import File or Folder…**: `PluginStore.isZip(_:)` decides from the
+  item (extension, then UTType), so the wrong pick is no longer possible.
+* Reads go through `NSFileCoordinator`, with a recursive `copyTree` fallback, and
+  the security scope is held for the whole copy.
+* A folder already dropped into `plugins/` via Files is adopted in place instead
+  of being copied onto itself.
+* `install(downloadedArchive:)` is the shared entry the marketplace uses, so a
+  downloaded plugin is validated by exactly the same `plugin.json` parser.
+
+**Marketplace.** A catalogue is an https URL returning JSON — `{"plugins":[…]}`
+or a bare array — so a GitHub raw file, a gist or any static host works; the fork
+has no server to run. Each entry names a `.zip` in the layout the importer
+accepts.
+
+* Add/remove catalogue sources in the sheet; the default list is empty on
+  purpose. A GitHub repo can also be installed with **no catalogue at all**
+  (`github.com/<owner>/<repo>` → its `main`, falling back to `master`), and a
+  plain `.zip` URL works too.
+* A catalogue is untrusted input: `download_url` must be https, an entry's
+  `sha256` must match the bytes when present, the archive is size-capped at
+  40 MB, the manifest inside it is re-validated locally, and its `id` must match
+  the row the user clicked (otherwise nothing is installed).
+* Search over name, id, description, author and tags; installed/update state per
+  row; per-source errors are shown instead of an empty list.
+* Source: `src/ios/Agent/Plugins/PluginMarketplace.swift`,
+  `src/ios/Views/Settings/PluginMarketplaceView.swift`,
+  `src/ios/Agent/Plugins/PluginStore.swift`.
+* Tests: `src/ios/MinisTests/Standalone/PluginImportTests.swift` — the extractor
+  and manifest parser are compiled as shipped and run against deflated, stored,
+  GitHub-wrapped and `__MACOSX`-noisy archives.
+
+## 11. Rootfs screen no longer queues probes on every scroll  `[T-ssh-menu-hang]`
+
+The Rootfs Management screen felt hung — most visibly around SSH. A `Section`
+inside a `Form` runs `.onAppear` again every time it scrolls back into view, and
+each appearance queued another guest probe (`executeCommandSync`, 10 s timeout)
+plus a 3 s SSH banner check, on top of the 20 s watchdog. Scrolling up and down
+piled work onto one container faster than it drained.
+
+* The SSH section uses `.task` (cancelled when it leaves) and
+  `SSHServerManager.kickFromAppearance`, rate-limited to one kick per 30 s.
+  Appearing is not evidence that anything changed; the watchdog and the user's
+  Refresh / Restart buttons are not rate-limited.
+* `verifyOrRestart` is single-flight: without it, the watchdog crossing an
+  appearance kick could restart the daemon on already-stale evidence.
+* The package-manager probe is rate-limited the same way (`refresh(force:)`),
+  with the post-install re-probe passing `force: true` so it is never swallowed.
 
 ## Building this fork
 

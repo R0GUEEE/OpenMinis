@@ -17,9 +17,13 @@ struct PluginsManagementView: View {
     @State private var importMessage: String?
     @State private var showImportMessage = false
     @State private var pendingDelete: InstalledPlugin?
+    @State private var showMarketplace = false
 
+    /// [T-plugin-import-robust] One kind now: the picked item decides whether it
+    /// is a `.zip` or a folder (`PluginStore.isZip`), instead of the menu entry
+    /// deciding and the wrong choice failing with "plugin.json not found".
     private enum ImportKind: String, Identifiable {
-        case archive, folder
+        case any
         var id: String { rawValue }
     }
 
@@ -74,6 +78,14 @@ struct PluginsManagementView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
+                    showMarketplace = true
+                } label: {
+                    Image(systemName: "storefront")
+                }
+                .accessibilityLabel(AppLocalized("Plugin Marketplace"))
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
                     showImportMenu = true
                 } label: {
                     Image(systemName: "plus")
@@ -81,9 +93,15 @@ struct PluginsManagementView: View {
                 .accessibilityLabel(AppLocalized("Add Plugin"))
             }
         }
+        .sheet(isPresented: $showMarketplace) {
+            PluginMarketplaceView()
+        }
         .confirmationDialog(AppLocalized("Add Plugin"), isPresented: $showImportMenu, titleVisibility: .visible) {
-            Button(AppLocalized("Import .zip Archive")) { importKind = .archive }
-            Button(AppLocalized("Import Folder")) { importKind = .folder }
+            // [T-plugin-import-robust] One picker, not two: the item's own kind
+            // decides how it is installed, so a .zip chosen under "folder" (or
+            // the reverse) can no longer fail confusingly.
+            Button(AppLocalized("Import File or Folder…")) { importKind = .any }
+            Button(AppLocalized("Browse Marketplace")) { showMarketplace = true }
             Button(AppLocalized("Cancel"), role: .cancel) {}
         } message: {
             Text(AppLocalized("The plugin must contain a plugin.json at its root or inside one top-level folder."))
@@ -91,11 +109,10 @@ struct PluginsManagementView: View {
         .fileImporter(isPresented: Binding(
             get: { importKind != nil },
             set: { if !$0 { importKind = nil } }
-        ), allowedContentTypes: importKind == .folder ? [.folder] : [.zip, .data], allowsMultipleSelection: false) { result in
-            let kind = importKind
+        ), allowedContentTypes: [.zip, .folder, .data], allowsMultipleSelection: false) { result in
+            guard importKind != nil else { return }
             importKind = nil
-            guard let kind else { return }
-            handleImport(result, kind: kind)
+            handleImport(result)
         }
         .alert(AppLocalized("Plugin Import"), isPresented: $showImportMessage) {
             Button("OK", role: .cancel) {}
@@ -123,19 +140,20 @@ struct PluginsManagementView: View {
         .onAppear { store.reload() }
     }
 
-    private func handleImport(_ result: Result<[URL], Error>, kind: ImportKind) {
+    private func handleImport(_ result: Result<[URL], Error>) {
         switch result {
         case .failure(let error):
             importMessage = error.localizedDescription
             showImportMessage = true
         case .success(let urls):
             guard let url = urls.first else { return }
-            let scoped = url.startAccessingSecurityScopedResource()
-            defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+            // The scope is taken by the store for the whole copy; taking it
+            // twice here would only drop the second reference early.
             do {
-                let plugin = kind == .folder
-                    ? try store.install(payloadDirectory: url)
-                    : try store.install(archiveURL: url)
+                // [T-plugin-import-robust] Security scope, coordinated reads
+                // and zip-vs-folder detection all live in the store, so
+                // import-from-URL and import-from-Files behave identically.
+                let plugin = try store.installPickedItem(url)
                 importMessage = AppLocalized("Installed “\(plugin.manifest.name)” v\(plugin.manifest.version) with \(plugin.manifest.tools.count) tool(s).")
             } catch {
                 importMessage = error.localizedDescription

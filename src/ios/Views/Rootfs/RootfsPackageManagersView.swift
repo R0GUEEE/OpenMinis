@@ -39,8 +39,24 @@ final class PackageManagersViewModel: ObservableObject {
         for category in Self.categories { statuses[category] = Status() }
     }
 
-    /// Probe every manager in one guest call. Safe to call on every appear.
-    func refresh() {
+    /// [T-ssh-menu-hang] Probe every manager in one guest call.
+    ///
+    /// NOT safe to call on every appear after all: `.task` on a section of this
+    /// Form runs again each time the section scrolls back into view, and each
+    /// run is a guest `executeCommandSync` with a 30 s timeout. Repeated
+    /// scrolling therefore queued probes faster than they drained, which is
+    /// what made the Rootfs screen feel stuck. Appearing is rate-limited; the
+    /// user's explicit refresh and an install are not.
+    private var lastProbeAt: Date?
+    static let appearProbeInterval: TimeInterval = 30
+
+    func refresh(force: Bool = false) {
+        if !force, let last = lastProbeAt,
+           Date().timeIntervalSince(last) < Self.appearProbeInterval,
+           !isRefreshing {
+            return
+        }
+        lastProbeAt = Date()
         refreshGeneration += 1
         let generation = refreshGeneration
         isRefreshing = true
@@ -103,7 +119,7 @@ final class PackageManagersViewModel: ObservableObject {
                     self.message = AppLocalized("apk add \(packages.joined(separator: " ")) failed: \(tail)")
                     self.messageIsError = true
                 }
-                self.refresh()
+                self.refresh(force: true)
             }
         }
     }

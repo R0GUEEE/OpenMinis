@@ -20,6 +20,8 @@
 		57E63023C8A9A3C505DF411B /* VoiceActivityDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7E2CB0D0D63E6D6FDB45568 /* VoiceActivityDetector.swift */; };
 		5EF8347C1EAA0066EFF631F8 /* GroupVoiceModelsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0ED149397BEA7E0408C92688 /* GroupVoiceModelsView.swift */; };
 		722C39ADD2C00E207E87C8EA /* PluginStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC1BAAA8623062AE0A28AA74 /* PluginStore.swift */; };
+		E5MP0001000000000000000B /* PluginMarketplace.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5MP0001000000000000000A /* PluginMarketplace.swift */; };
+		E5MP0002000000000000000B /* PluginMarketplaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5MP0002000000000000000A /* PluginMarketplaceView.swift */; };
 		77BB9741AB0EFC449FDBDFED /* VoiceWaveformView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16FF3462D09402F14B610CD6 /* VoiceWaveformView.swift */; };
 		7A49962E84F115865D41B933 /* AudioSessionCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE154CF628D8699BD99CF9CB /* AudioSessionCoordinator.swift */; };
 		7A822436233F3227678277FC /* AIChatViewModel+UserAsk.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5340160943C17EA292203242 /* AIChatViewModel+UserAsk.swift */; };
@@ -734,6 +736,7 @@
 		0ED149397BEA7E0408C92688 /* GroupVoiceModelsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GroupVoiceModelsView.swift; sourceTree = "<group>"; };
 		0F5379380323FA8C6477708C /* GroupSlotPicker.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GroupSlotPicker.swift; sourceTree = "<group>"; };
 		0F7FC07FBE60074A3B27C411 /* PluginsManagementView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PluginsManagementView.swift; sourceTree = "<group>"; };
+		E5MP0002000000000000000A /* PluginMarketplaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PluginMarketplaceView.swift; sourceTree = "<group>"; };
 		16FF3462D09402F14B610CD6 /* VoiceWaveformView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = VoiceWaveformView.swift; sourceTree = "<group>"; };
 		23824EFC66DA09678B8ACFC7 /* RootfsPackageManagersView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootfsPackageManagersView.swift; sourceTree = "<group>"; };
 		28E23EA0E199D6D50EBC76F2 /* VoiceLog.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = VoiceLog.swift; sourceTree = "<group>"; };
@@ -1415,6 +1418,7 @@
 		EAB000070 /* UploadPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UploadPolicy.swift; sourceTree = "<group>"; };
 		EAB000080 /* CloudSyncSettingsV2View.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudSyncSettingsV2View.swift; sourceTree = "<group>"; };
 		EC1BAAA8623062AE0A28AA74 /* PluginStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PluginStore.swift; sourceTree = "<group>"; };
+		E5MP0001000000000000000A /* PluginMarketplace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PluginMarketplace.swift; sourceTree = "<group>"; };
 		EF08A43E8045BF444E5F2DF1 /* UserAskCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserAskCore.swift; sourceTree = "<group>"; };
 		EXA000011 /* xAIModelsAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = xAIModelsAPI.swift; sourceTree = "<group>"; };
 		EXA000012 /* XAITokenStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XAITokenStorage.swift; sourceTree = "<group>"; };
@@ -2657,6 +2661,7 @@
 				E5LOCK102 /* FaceIDProtectionSettingsView.swift */,
 				E5LOCK103 /* AppLockOverlay.swift */,
 				0F7FC07FBE60074A3B27C411 /* PluginsManagementView.swift */,
+				E5MP0002000000000000000A /* PluginMarketplaceView.swift */,
 				5FD39100A7DFE39D7E53CE34 /* MCPHostSettingsView.swift */,
 			);
 			path = Settings;
@@ -2754,6 +2759,7 @@
 			children = (
 				32529488234D58031FC31C19 /* PluginManifest.swift */,
 				EC1BAAA8623062AE0A28AA74 /* PluginStore.swift */,
+				E5MP0001000000000000000A /* PluginMarketplace.swift */,
 				889EE0676E10C8BC138D5824 /* PluginToolRunner.swift */,
 			);
 			path = Plugins;
@@ -3673,12 +3679,14 @@
 				C0B1AF9A75C90C3C178A8804 /* VoiceTextSanitizer.swift in Sources */,
 				916E97A724891F5B759C73E1 /* PluginManifest.swift in Sources */,
 				722C39ADD2C00E207E87C8EA /* PluginStore.swift in Sources */,
+				E5MP0001000000000000000B /* PluginMarketplace.swift in Sources */,
 				FCC08DEE0D775CEA786E2AEF /* PluginToolRunner.swift in Sources */,
 				85D7D00D57A3726A9D4AD6FB /* MCPHostedServer.swift in Sources */,
 				B50A88BA69C62664623ECE1C /* SSHServerManager.swift in Sources */,
 				B5373FC0D3A18F72ACC6FF1A /* RootfsPackageManagersView.swift in Sources */,
 				DF3957FB45318DFFE6CE56A4 /* SSHServerView.swift in Sources */,
 				81CE8BC2E7A4E9AAD7B51486 /* PluginsManagementView.swift in Sources */,
+				E5MP0002000000000000000B /* PluginMarketplaceView.swift in Sources */,
 				9F343BEFCAC742F3C00761BC /* MCPHostSettingsView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

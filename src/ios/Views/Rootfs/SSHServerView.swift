@@ -62,9 +62,11 @@ struct SSHServerSection: View {
         } footer: {
             Text(AppLocalized("sshd runs inside the Alpine container and listens on 0.0.0.0. Other apps on this device reach it at 127.0.0.1; other devices on the network use the LAN address. iOS suspends it while Minis is in the background."))
         }
-        .onAppear {
-            manager.refreshFromConfig()
-            manager.startIfEnabled(reason: "rootfs screen")
+        // [T-ssh-menu-hang] `.task`, not `.onAppear`: a Form section re-appears
+        // on every scroll-in, and `.task` is cancelled when it goes away. The
+        // kick itself is rate-limited too, so scrolling cannot queue probes.
+        .task {
+            manager.kickFromAppearance(reason: "rootfs screen")
         }
     }
 

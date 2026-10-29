@@ -262,6 +262,37 @@ final class SSHServerManager: ObservableObject {
 
     // MARK: - Lifecycle
 
+    /// [T-ssh-menu-hang] Minimum interval between probes triggered by a view
+    /// APPEARING.
+    ///
+    /// A `Section` inside a `Form` runs `.onAppear` again every time it scrolls
+    /// back into view — not once per screen. Each of those queued another guest
+    /// probe (`executeCommandSync`, 10 s timeout) plus a 3 s banner check
+    /// against the same container, on top of the 20 s watchdog. Scrolling the
+    /// Rootfs screen up and down was therefore indistinguishable from a hang:
+    /// every appearance piled more work onto one shell.
+    ///
+    /// Appearing is not evidence that anything changed, so it is rate-limited;
+    /// the watchdog and the user's own Refresh / Restart buttons are not.
+    private static let appearKickInterval: TimeInterval = 30
+    private var lastAppearKick: Date?
+    /// Re-entrancy guard: `verifyOrRestart` awaits, so two callers can overlap.
+    private var isVerifying = false
+
+    /// The Rootfs screen's entry point. Cheap and idempotent by design — see
+    /// `appearKickInterval`.
+    func kickFromAppearance(reason: String) {
+        refreshFromConfig()
+        guard isEnabled else {
+            status = .disabled
+            return
+        }
+        let now = Date()
+        if let last = lastAppearKick, now.timeIntervalSince(last) < Self.appearKickInterval { return }
+        lastAppearKick = now
+        startIfEnabled(reason: reason)
+    }
+
     /// Boot the container if needed and make sure sshd is up. Called on every
     /// foreground return and after the rootfs screen appears; cheap when the
     /// daemon already answers its banner.
@@ -416,6 +447,13 @@ final class SSHServerManager: ObservableObject {
     private func verifyOrRestart(source: String) async {
         guard isEnabled else { return }
         guard !status.isBusy else { return }
+        // [T-ssh-menu-hang] One verification at a time: the body awaits a 3 s
+        // banner probe, and without this flag a second caller (the watchdog
+        // crossing an appearance kick) probes concurrently and can restart the
+        // daemon on evidence that is already stale.
+        guard !isVerifying else { return }
+        isVerifying = true
+        defer { isVerifying = false }
         if let banner = await Self.probeBanner(port: UInt16(port), timeout: 3) {
             if status != .running {
                 status = .running

@@ -12,6 +12,7 @@
 
 import Foundation
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// One installed plugin as the UI and the tool layer see it.
 struct InstalledPlugin: Identifiable, Equatable {
@@ -143,6 +144,109 @@ final class PluginStore: ObservableObject {
             plugins[index].isEnabled = enabled && plugins[index].loadError == nil
         }
         revision &+= 1
+    }
+
+    /// Install from a user-picked item — a `.zip` or a folder — without the
+    /// caller having to know which it is.
+    ///
+    /// [T-plugin-import-robust] The picker hands back a URL owned by another
+    /// app's FileProvider (iCloud Drive, Dropbox, a downloaded zip in Files).
+    /// Reading one of those is a coordinated XPC round trip, and an uncoordinated
+    /// `copyItem` fails outright ("The file couldn't be opened") on providers
+    /// that only materialise on demand — which is what made importing look
+    /// broken. The security scope is held for the whole copy, and the item's
+    /// kind is decided from the item itself rather than from which menu entry
+    /// the user tapped (picking a zip under "Import Folder" used to fail with
+    /// "plugin.json not found").
+    @discardableResult
+    func installPickedItem(_ url: URL) throws -> InstalledPlugin {
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+
+        // Already inside the plugins directory (the user dropped it there in
+        // Files): validate and enable in place instead of copying onto itself.
+        if url.deletingLastPathComponent().standardizedFileURL == Self.rootDirectory.standardizedFileURL {
+            reload()
+            guard let installed = plugins.first(where: { $0.directory.standardizedFileURL == url.standardizedFileURL }),
+                  installed.loadError == nil else {
+                throw InstallError.invalidArchive(
+                    plugins.first { $0.directory.standardizedFileURL == url.standardizedFileURL }?.loadError
+                    ?? "That folder could not be read as a plugin.")
+            }
+            return installed
+        }
+
+        let staging = fm.temporaryDirectory.appendingPathComponent("plugin-\(UUID().uuidString)", isDirectory: true)
+        defer { try? fm.removeItem(at: staging) }
+
+        if Self.isZip(url) {
+            let local = staging.appendingPathComponent("payload.zip")
+            try coordinatedCopy(from: url, to: local)
+            return try install(archiveURL: local)
+        }
+        // Anything else is treated as a folder; `locatePayload` then accepts the
+        // plugin.json at its root or one level down.
+        try coordinatedCopy(from: url, to: staging.appendingPathComponent("payload", isDirectory: true))
+        return try install(payloadDirectory: staging.appendingPathComponent("payload", isDirectory: true))
+    }
+
+    /// Install a zip already downloaded into memory (the marketplace path).
+    @discardableResult
+    func install(downloadedArchive data: Data) throws -> InstalledPlugin {
+        let staging = fm.temporaryDirectory.appendingPathComponent("plugin-\(UUID().uuidString)", isDirectory: true)
+        defer { try? fm.removeItem(at: staging) }
+        try fm.createDirectory(at: staging, withIntermediateDirectories: true)
+        let zip = staging.appendingPathComponent("payload.zip")
+        try data.write(to: zip, options: .atomic)
+        return try install(archiveURL: zip)
+    }
+
+    /// A `.zip` by extension or by content type (a file named `plugin` with a
+    /// zip type still counts).
+    static func isZip(_ url: URL) -> Bool {
+        if url.pathExtension.lowercased() == "zip" { return true }
+        let values = try? url.resourceValues(forKeys: [.contentTypeKey])
+        return values?.contentType?.conforms(to: .zip) ?? false
+    }
+
+    /// Copy one item out of a possibly remote FileProvider, coordinated so the
+    /// provider actually materialises it, with a plain recursive copy as the
+    /// fallback for providers that refuse the coordinated fast path.
+    private func coordinatedCopy(from source: URL, to destination: URL) throws {
+        try fm.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
+        var coordinatorError: NSError?
+        var copyError: Error?
+        NSFileCoordinator().coordinate(readingItemAt: source, options: [], error: &coordinatorError) { readable in
+            do {
+                try fm.copyItem(at: readable, to: destination)
+            } catch {
+                copyError = error
+            }
+        }
+        if let coordinatorError { throw coordinatorError }
+        if let copyError {
+            // One retry through a manual walk: some providers answer the
+            // coordinated read with a placeholder URL that copyItem cannot open.
+            try? fm.removeItem(at: destination)
+            try Self.copyTree(from: source, to: destination)
+        }
+    }
+
+    /// Depth-first copy that tolerates a provider materialising files lazily.
+    static func copyTree(from source: URL, to destination: URL) throws {
+        let fm = FileManager.default
+        let isDir = (try? source.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
+        if !isDir {
+            try fm.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try fm.copyItem(at: source, to: destination)
+            return
+        }
+        try fm.createDirectory(at: destination, withIntermediateDirectories: true)
+        let children = try fm.contentsOfDirectory(at: source, includingPropertiesForKeys: [.isDirectoryKey],
+                                                   options: [])
+        for child in children {
+            try copyTree(from: child, to: destination.appendingPathComponent(child.lastPathComponent))
+        }
     }
 
     // MARK: - Install / remove
