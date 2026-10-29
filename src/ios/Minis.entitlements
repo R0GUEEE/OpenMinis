@@ -14,7 +14,7 @@
 	<true/>
 	<key>com.apple.developer.icloud-container-identifiers</key>
 	<array>
-		<string>iCloud.com.openminis.app</string>
+		<string>iCloud.com.r0gueee.minis</string>
 	</array>
 	<key>com.apple.developer.icloud-services</key>
 	<array>
@@ -27,13 +27,13 @@
 	</array>
 	<key>com.apple.developer.ubiquity-container-identifiers</key>
 	<array>
-		<string>iCloud.com.openminis.app</string>
+		<string>iCloud.com.r0gueee.minis</string>
 	</array>
 	<key>com.apple.developer.weatherkit</key>
 	<true/>
 	<key>com.apple.security.application-groups</key>
 	<array>
-		<string>group.com.openminis.app</string>
+		<string>group.com.r0gueee.minis</string>
 	</array>
 </dict>
 </plist>

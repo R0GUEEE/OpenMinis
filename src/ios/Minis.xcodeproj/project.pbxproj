@@ -7,15 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		916E97A724891F5B759C73E1 /* PluginManifest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32529488234D58031FC31C19 /* PluginManifest.swift */; };
-		722C39ADD2C00E207E87C8EA /* PluginStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC1BAAA8623062AE0A28AA74 /* PluginStore.swift */; };
-		FCC08DEE0D775CEA786E2AEF /* PluginToolRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 889EE0676E10C8BC138D5824 /* PluginToolRunner.swift */; };
-		85D7D00D57A3726A9D4AD6FB /* MCPHostedServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5EB23F34D3838B2F6E18A3C /* MCPHostedServer.swift */; };
-		B50A88BA69C62664623ECE1C /* SSHServerManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8A9BB90D5E9E59CBDC319EE /* SSHServerManager.swift */; };
-		B5373FC0D3A18F72ACC6FF1A /* RootfsPackageManagersView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23824EFC66DA09678B8ACFC7 /* RootfsPackageManagersView.swift */; };
-		DF3957FB45318DFFE6CE56A4 /* SSHServerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7361C109C08A160DAE89577 /* SSHServerView.swift */; };
-		81CE8BC2E7A4E9AAD7B51486 /* PluginsManagementView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F7FC07FBE60074A3B27C411 /* PluginsManagementView.swift */; };
-		9F343BEFCAC742F3C00761BC /* MCPHostSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FD39100A7DFE39D7E53CE34 /* MCPHostSettingsView.swift */; };
 		21FED4B7BB6F6D9476C9992E /* VoiceProvider+System.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88993FC8E3F0199C6638F664 /* VoiceProvider+System.swift */; };
 		241D530017827D7F0EB604DE /* VoiceProviderFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2941B643B8A2F048A2B154E /* VoiceProviderFactory.swift */; };
 		2A4FD49F872431D703328384 /* VoiceOutputPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 424510790AF3FB2452D3CCE3 /* VoiceOutputPlayer.swift */; };
@@ -28,15 +19,20 @@
 		52F76965817EDFB2E37E8220 /* InlineVoiceInputView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D1A2B7331C508B0D3E77D28 /* InlineVoiceInputView.swift */; };
 		57E63023C8A9A3C505DF411B /* VoiceActivityDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7E2CB0D0D63E6D6FDB45568 /* VoiceActivityDetector.swift */; };
 		5EF8347C1EAA0066EFF631F8 /* GroupVoiceModelsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0ED149397BEA7E0408C92688 /* GroupVoiceModelsView.swift */; };
+		722C39ADD2C00E207E87C8EA /* PluginStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC1BAAA8623062AE0A28AA74 /* PluginStore.swift */; };
 		77BB9741AB0EFC449FDBDFED /* VoiceWaveformView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16FF3462D09402F14B610CD6 /* VoiceWaveformView.swift */; };
 		7A49962E84F115865D41B933 /* AudioSessionCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE154CF628D8699BD99CF9CB /* AudioSessionCoordinator.swift */; };
 		7A822436233F3227678277FC /* AIChatViewModel+UserAsk.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5340160943C17EA292203242 /* AIChatViewModel+UserAsk.swift */; };
 		7F0DF01D0A /* ToolFoldPlanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F0DF01D0B /* ToolFoldPlanner.swift */; };
+		81CE8BC2E7A4E9AAD7B51486 /* PluginsManagementView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F7FC07FBE60074A3B27C411 /* PluginsManagementView.swift */; };
+		85D7D00D57A3726A9D4AD6FB /* MCPHostedServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5EB23F34D3838B2F6E18A3C /* MCPHostedServer.swift */; };
 		87764AE3691086C907B97519 /* UserAskCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF08A43E8045BF444E5F2DF1 /* UserAskCore.swift */; };
 		891443CAA4679D09A6D32AE4 /* RealTimeCutVADLibrary in Frameworks */ = {isa = PBXBuildFile; productRef = C42120806C66A2C804F89620 /* RealTimeCutVADLibrary */; };
 		8B886DA8A270E8FB58A9A1FA /* SpeechPlayerControl.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A302B074A0BE0AFED8EC7E9 /* SpeechPlayerControl.swift */; };
 		90EF21EB8AAB5C9B849883A4 /* UserAskSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7F4078E062F701034D36265 /* UserAskSettings.swift */; };
+		916E97A724891F5B759C73E1 /* PluginManifest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32529488234D58031FC31C19 /* PluginManifest.swift */; };
 		9214E78B060BCD8BA7E118D4 /* NotificationCategoryCenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D7227A3A4F8E20ED979981C /* NotificationCategoryCenter.swift */; };
+		9F343BEFCAC742F3C00761BC /* MCPHostSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FD39100A7DFE39D7E53CE34 /* MCPHostSettingsView.swift */; };
 		A11Y0001 /* ChatAccessibilityAnnouncer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11Y0002 /* ChatAccessibilityAnnouncer.swift */; };
 		A1B2C3D4E5F60718293A4B5C /* SystemVoiceCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B5D /* SystemVoiceCatalog.swift */; };
 		AA0838A02F3B941A00049557 /* AboutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0838A12F3B941A00049557 /* AboutView.swift */; };
@@ -57,22 +53,24 @@
 		AA71B0222F44BEB200A28A5E /* Launch Screen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AA71B0212F44BEB200A28A5E /* Launch Screen.storyboard */; };
 		AA9C2BF92F65996900F41633 /* SwiftMath in Frameworks */ = {isa = PBXBuildFile; productRef = E5X000021 /* SwiftMath */; };
 		AADDA9E12F6ECCF400B66649 /* ThumbnailCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = AADDA9E02F6ECCF400B66649 /* ThumbnailCache.swift */; };
-		AAF00F012F50A00000049557 /* FFmpeg.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AAF00F002F50A00000049557 /* FFmpeg.framework */; };
-		AAF00F022F50A00000049557 /* FFmpeg.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = AAF00F002F50A00000049557 /* FFmpeg.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
-		AAF10F012F50A00000049557 /* libavcodec.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AAF10F002F50A00000049557 /* libavcodec.framework */; };
-		AAF10F022F50A00000049557 /* libavcodec.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = AAF10F002F50A00000049557 /* libavcodec.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
-		AAF10F032F50A00000049557 /* libavformat.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AAF10F042F50A00000049557 /* libavformat.framework */; };
-		AAF10F052F50A00000049557 /* libavformat.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = AAF10F042F50A00000049557 /* libavformat.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
-		AAF10F062F50A00000049557 /* libavutil.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AAF10F072F50A00000049557 /* libavutil.framework */; };
-		AAF10F082F50A00000049557 /* libavutil.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = AAF10F072F50A00000049557 /* libavutil.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
-		AAF10F092F50A00000049557 /* libavfilter.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AAF10F0A2F50A00000049557 /* libavfilter.framework */; };
-		AAF10F0B2F50A00000049557 /* libavfilter.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = AAF10F0A2F50A00000049557 /* libavfilter.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
-		AAF10F0C2F50A00000049557 /* libswresample.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AAF10F0D2F50A00000049557 /* libswresample.framework */; };
-		AAF10F0E2F50A00000049557 /* libswresample.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = AAF10F0D2F50A00000049557 /* libswresample.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
-		AAF10F0F2F50A00000049557 /* libswscale.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AAF10F102F50A00000049557 /* libswscale.framework */; };
-		AAF10F112F50A00000049557 /* libswscale.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = AAF10F102F50A00000049557 /* libswscale.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		AAF00F012F50A00000049557 /* FFmpeg.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = AAF00F002F50A00000049557 /* FFmpeg.xcframework */; };
+		AAF00F022F50A00000049557 /* FFmpeg.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = AAF00F002F50A00000049557 /* FFmpeg.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		AAF10F012F50A00000049557 /* libavcodec.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = AAF10F002F50A00000049557 /* libavcodec.xcframework */; };
+		AAF10F022F50A00000049557 /* libavcodec.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = AAF10F002F50A00000049557 /* libavcodec.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		AAF10F032F50A00000049557 /* libavformat.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = AAF10F042F50A00000049557 /* libavformat.xcframework */; };
+		AAF10F052F50A00000049557 /* libavformat.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = AAF10F042F50A00000049557 /* libavformat.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		AAF10F062F50A00000049557 /* libavutil.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = AAF10F072F50A00000049557 /* libavutil.xcframework */; };
+		AAF10F082F50A00000049557 /* libavutil.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = AAF10F072F50A00000049557 /* libavutil.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		AAF10F092F50A00000049557 /* libavfilter.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = AAF10F0A2F50A00000049557 /* libavfilter.xcframework */; };
+		AAF10F0B2F50A00000049557 /* libavfilter.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = AAF10F0A2F50A00000049557 /* libavfilter.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		AAF10F0C2F50A00000049557 /* libswresample.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = AAF10F0D2F50A00000049557 /* libswresample.xcframework */; };
+		AAF10F0E2F50A00000049557 /* libswresample.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = AAF10F0D2F50A00000049557 /* libswresample.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		AAF10F0F2F50A00000049557 /* libswscale.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = AAF10F102F50A00000049557 /* libswscale.xcframework */; };
+		AAF10F112F50A00000049557 /* libswscale.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = AAF10F102F50A00000049557 /* libswscale.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		AC0000202 /* ProviderCustomizationGenerated.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC0000201 /* ProviderCustomizationGenerated.swift */; };
 		B02B7ADBAB47BDB33F664A21 /* VoiceProvider+Vendors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2BB45FC87D39AE9AB4495BE9 /* VoiceProvider+Vendors.swift */; };
+		B50A88BA69C62664623ECE1C /* SSHServerManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8A9BB90D5E9E59CBDC319EE /* SSHServerManager.swift */; };
+		B5373FC0D3A18F72ACC6FF1A /* RootfsPackageManagersView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23824EFC66DA09678B8ACFC7 /* RootfsPackageManagersView.swift */; };
 		BB1000100F700000000000AA /* ContextPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB1000110F700000000000AA /* ContextPolicy.swift */; };
 		BKP000101 /* BackupFormat.swift in Sources */ = {isa = PBXBuildFile; fileRef = BKP000201 /* BackupFormat.swift */; };
 		BKP000102 /* BackupBlobStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = BKP000202 /* BackupBlobStore.swift */; };
@@ -104,6 +102,7 @@
 		BKP000144 /* BackupSkippedFilesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BKP000244 /* BackupSkippedFilesView.swift */; };
 		C0B1AF9A75C90C3C178A8804 /* VoiceTextSanitizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7656F4130247E4002A3AC0C /* VoiceTextSanitizer.swift */; };
 		C39F1823882535F6FCC47D18 /* UserAskCenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A85BF57B9450AF0807ACDDE /* UserAskCenter.swift */; };
+		DF3957FB45318DFFE6CE56A4 /* SSHServerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7361C109C08A160DAE89577 /* SSHServerView.swift */; };
 		E51000001 /* MinisApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E51000011 /* MinisApp.swift */; };
 		E51000003 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E51000013 /* Assets.xcassets */; };
 		E51000004 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E51000014 /* Preview Assets.xcassets */; };
@@ -612,6 +611,7 @@
 		F1W00101 /* PrintHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1W00100 /* PrintHelper.swift */; };
 		F1W00901 /* LazyLongTextView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1W00900 /* LazyLongTextView.swift */; };
 		F1W0E101 /* WebLoadError.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1W0E100 /* WebLoadError.swift */; };
+		FCC08DEE0D775CEA786E2AEF /* PluginToolRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 889EE0676E10C8BC138D5824 /* PluginToolRunner.swift */; };
 		FDD896F80E0A14A7B60B12EF /* VoiceLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28E23EA0E199D6D50EBC76F2 /* VoiceLog.swift */; };
 		FE115F74BE2709CEB6B7837F /* UserAskCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 791847408A92CF0D2161F33A /* UserAskCardView.swift */; };
 		LOC00001 /* AppLocalization.swift in Sources */ = {isa = PBXBuildFile; fileRef = LOC00002 /* AppLocalization.swift */; };
@@ -685,13 +685,13 @@
 			dstPath = "";
 			dstSubfolderSpec = 10;
 			files = (
-				AAF00F022F50A00000049557 /* FFmpeg.framework in Embed Frameworks */,
-				AAF10F022F50A00000049557 /* libavcodec.framework in Embed Frameworks */,
-				AAF10F052F50A00000049557 /* libavformat.framework in Embed Frameworks */,
-				AAF10F082F50A00000049557 /* libavutil.framework in Embed Frameworks */,
-				AAF10F0B2F50A00000049557 /* libavfilter.framework in Embed Frameworks */,
-				AAF10F0E2F50A00000049557 /* libswresample.framework in Embed Frameworks */,
-				AAF10F112F50A00000049557 /* libswscale.framework in Embed Frameworks */,
+				AAF00F022F50A00000049557 /* FFmpeg.xcframework in Embed Frameworks */,
+				AAF10F022F50A00000049557 /* libavcodec.xcframework in Embed Frameworks */,
+				AAF10F052F50A00000049557 /* libavformat.xcframework in Embed Frameworks */,
+				AAF10F082F50A00000049557 /* libavutil.xcframework in Embed Frameworks */,
+				AAF10F0B2F50A00000049557 /* libavfilter.xcframework in Embed Frameworks */,
+				AAF10F0E2F50A00000049557 /* libswresample.xcframework in Embed Frameworks */,
+				AAF10F112F50A00000049557 /* libswscale.xcframework in Embed Frameworks */,
 			);
 			name = "Embed Frameworks";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -731,35 +731,32 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		32529488234D58031FC31C19 /* PluginManifest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PluginManifest.swift; sourceTree = "<group>"; };
-		EC1BAAA8623062AE0A28AA74 /* PluginStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PluginStore.swift; sourceTree = "<group>"; };
-		889EE0676E10C8BC138D5824 /* PluginToolRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PluginToolRunner.swift; sourceTree = "<group>"; };
-		A5EB23F34D3838B2F6E18A3C /* MCPHostedServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MCPHostedServer.swift; sourceTree = "<group>"; };
-		B8A9BB90D5E9E59CBDC319EE /* SSHServerManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHServerManager.swift; sourceTree = "<group>"; };
-		23824EFC66DA09678B8ACFC7 /* RootfsPackageManagersView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootfsPackageManagersView.swift; sourceTree = "<group>"; };
-		C7361C109C08A160DAE89577 /* SSHServerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHServerView.swift; sourceTree = "<group>"; };
-		0F7FC07FBE60074A3B27C411 /* PluginsManagementView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PluginsManagementView.swift; sourceTree = "<group>"; };
-		5FD39100A7DFE39D7E53CE34 /* MCPHostSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MCPHostSettingsView.swift; sourceTree = "<group>"; };
 		0ED149397BEA7E0408C92688 /* GroupVoiceModelsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GroupVoiceModelsView.swift; sourceTree = "<group>"; };
 		0F5379380323FA8C6477708C /* GroupSlotPicker.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GroupSlotPicker.swift; sourceTree = "<group>"; };
+		0F7FC07FBE60074A3B27C411 /* PluginsManagementView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PluginsManagementView.swift; sourceTree = "<group>"; };
 		16FF3462D09402F14B610CD6 /* VoiceWaveformView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = VoiceWaveformView.swift; sourceTree = "<group>"; };
+		23824EFC66DA09678B8ACFC7 /* RootfsPackageManagersView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootfsPackageManagersView.swift; sourceTree = "<group>"; };
 		28E23EA0E199D6D50EBC76F2 /* VoiceLog.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = VoiceLog.swift; sourceTree = "<group>"; };
 		2BB45FC87D39AE9AB4495BE9 /* VoiceProvider+Vendors.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "VoiceProvider+Vendors.swift"; sourceTree = "<group>"; };
+		32529488234D58031FC31C19 /* PluginManifest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PluginManifest.swift; sourceTree = "<group>"; };
 		424510790AF3FB2452D3CCE3 /* VoiceOutputPlayer.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = VoiceOutputPlayer.swift; sourceTree = "<group>"; };
 		4D1A2B7331C508B0D3E77D28 /* InlineVoiceInputView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = InlineVoiceInputView.swift; sourceTree = "<group>"; };
 		4D7227A3A4F8E20ED979981C /* NotificationCategoryCenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationCategoryCenter.swift; sourceTree = "<group>"; };
 		5340160943C17EA292203242 /* AIChatViewModel+UserAsk.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AIChatViewModel+UserAsk.swift"; sourceTree = "<group>"; };
 		535D58AA5C4B7B563E4C8821 /* VoiceInputModels.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = VoiceInputModels.swift; sourceTree = "<group>"; };
 		5F3D1138DBE516F31D76ABF4 /* VoiceProviderTemplate.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = VoiceProviderTemplate.swift; sourceTree = "<group>"; };
+		5FD39100A7DFE39D7E53CE34 /* MCPHostSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MCPHostSettingsView.swift; sourceTree = "<group>"; };
 		791847408A92CF0D2161F33A /* UserAskCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserAskCardView.swift; sourceTree = "<group>"; };
 		7A302B074A0BE0AFED8EC7E9 /* SpeechPlayerControl.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SpeechPlayerControl.swift; sourceTree = "<group>"; };
 		7F0DF01D0B /* ToolFoldPlanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolFoldPlanner.swift; sourceTree = "<group>"; };
 		84758F712C9B9178FA9D0EF2 /* VoiceProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = VoiceProvider.swift; sourceTree = "<group>"; };
 		86DD7E40E65177AB39C55882 /* VoiceProviderResolver.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = VoiceProviderResolver.swift; sourceTree = "<group>"; };
 		88993FC8E3F0199C6638F664 /* VoiceProvider+System.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "VoiceProvider+System.swift"; sourceTree = "<group>"; };
+		889EE0676E10C8BC138D5824 /* PluginToolRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PluginToolRunner.swift; sourceTree = "<group>"; };
 		8A85BF57B9450AF0807ACDDE /* UserAskCenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserAskCenter.swift; sourceTree = "<group>"; };
 		A11Y0002 /* ChatAccessibilityAnnouncer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatAccessibilityAnnouncer.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A4B5D /* SystemVoiceCatalog.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SystemVoiceCatalog.swift; sourceTree = "<group>"; };
+		A5EB23F34D3838B2F6E18A3C /* MCPHostedServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MCPHostedServer.swift; sourceTree = "<group>"; };
 		AA0838A12F3B941A00049557 /* AboutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutView.swift; sourceTree = "<group>"; };
 		AA0838BE2F3B941A00049557 /* RootfsManagementView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootfsManagementView.swift; sourceTree = "<group>"; };
 		AA0838BF2F3B941A00049557 /* RootfsResetButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootfsResetButton.swift; sourceTree = "<group>"; };
@@ -849,6 +846,7 @@
 		AC0000001 /* ProviderCustomization.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = ProviderCustomization.xcconfig; path = Configs/ProviderCustomization.xcconfig; sourceTree = "<group>"; };
 		AC0000201 /* ProviderCustomizationGenerated.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ProviderCustomizationGenerated.swift; path = Generated/ProviderCustomizationGenerated.swift; sourceTree = "<group>"; };
 		B7E2CB0D0D63E6D6FDB45568 /* VoiceActivityDetector.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = VoiceActivityDetector.swift; sourceTree = "<group>"; };
+		B8A9BB90D5E9E59CBDC319EE /* SSHServerManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHServerManager.swift; sourceTree = "<group>"; };
 		BB1000010F700000000000AA /* MinisTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MinisTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		BB1000110F700000000000AA /* ContextPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContextPolicy.swift; sourceTree = "<group>"; };
 		BKP000201 /* BackupFormat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupFormat.swift; sourceTree = "<group>"; };
@@ -879,6 +877,7 @@
 		BKP000242 /* BackupZipWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupZipWriter.swift; sourceTree = "<group>"; };
 		BKP000243 /* BackupTransferStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupTransferStatus.swift; sourceTree = "<group>"; };
 		BKP000244 /* BackupSkippedFilesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupSkippedFilesView.swift; sourceTree = "<group>"; };
+		C7361C109C08A160DAE89577 /* SSHServerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHServerView.swift; sourceTree = "<group>"; };
 		D7656F4130247E4002A3AC0C /* VoiceTextSanitizer.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = VoiceTextSanitizer.swift; sourceTree = "<group>"; };
 		D7F4078E062F701034D36265 /* UserAskSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserAskSettings.swift; sourceTree = "<group>"; };
 		DE154CF628D8699BD99CF9CB /* AudioSessionCoordinator.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AudioSessionCoordinator.swift; sourceTree = "<group>"; };
@@ -1415,6 +1414,7 @@
 		EAB000050 /* SyncMigrationDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncMigrationDetailView.swift; sourceTree = "<group>"; };
 		EAB000070 /* UploadPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UploadPolicy.swift; sourceTree = "<group>"; };
 		EAB000080 /* CloudSyncSettingsV2View.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudSyncSettingsV2View.swift; sourceTree = "<group>"; };
+		EC1BAAA8623062AE0A28AA74 /* PluginStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PluginStore.swift; sourceTree = "<group>"; };
 		EF08A43E8045BF444E5F2DF1 /* UserAskCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserAskCore.swift; sourceTree = "<group>"; };
 		EXA000011 /* xAIModelsAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = xAIModelsAPI.swift; sourceTree = "<group>"; };
 		EXA000012 /* XAITokenStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XAITokenStorage.swift; sourceTree = "<group>"; };
@@ -1503,14 +1503,14 @@
 			buildActionMask = 2147483647;
 			files = (
 				AA9C2BF92F65996900F41633 /* SwiftMath in Frameworks */,
-				AAF00F012F50A00000049557 /* FFmpeg.framework in Frameworks */,
+				AAF00F012F50A00000049557 /* FFmpeg.xcframework in Frameworks */,
 				RCL000010 /* Rclone.xcframework in Frameworks */,
-				AAF10F012F50A00000049557 /* libavcodec.framework in Frameworks */,
-				AAF10F032F50A00000049557 /* libavformat.framework in Frameworks */,
-				AAF10F062F50A00000049557 /* libavutil.framework in Frameworks */,
-				AAF10F092F50A00000049557 /* libavfilter.framework in Frameworks */,
-				AAF10F0C2F50A00000049557 /* libswresample.framework in Frameworks */,
-				AAF10F0F2F50A00000049557 /* libswscale.framework in Frameworks */,
+				AAF10F012F50A00000049557 /* libavcodec.xcframework in Frameworks */,
+				AAF10F032F50A00000049557 /* libavformat.xcframework in Frameworks */,
+				AAF10F062F50A00000049557 /* libavutil.xcframework in Frameworks */,
+				AAF10F092F50A00000049557 /* libavfilter.xcframework in Frameworks */,
+				AAF10F0C2F50A00000049557 /* libswresample.xcframework in Frameworks */,
+				AAF10F0F2F50A00000049557 /* libswscale.xcframework in Frameworks */,
 				AA26CCB92F31070A00AECF2D /* libsqlite3.tbd in Frameworks */,
 				AA26CCC32F31090100AECF2D /* libresolv.tbd in Frameworks */,
 				AA26CCC12F31090000AECF2D /* SystemConfiguration.framework in Frameworks */,
@@ -1532,24 +1532,6 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		FD384C5B4A24500ED1885534 /* Plugins */ = {
-			isa = PBXGroup;
-			children = (
-				32529488234D58031FC31C19 /* PluginManifest.swift */,
-				EC1BAAA8623062AE0A28AA74 /* PluginStore.swift */,
-				889EE0676E10C8BC138D5824 /* PluginToolRunner.swift */,
-			);
-			path = Plugins;
-			sourceTree = "<group>";
-		};
-		F2B19D0F3ECC4BAC4E308CB1 /* MCPServer */ = {
-			isa = PBXGroup;
-			children = (
-				A5EB23F34D3838B2F6E18A3C /* MCPHostedServer.swift */,
-			);
-			path = MCPServer;
-			sourceTree = "<group>";
-		};
 		3A1A3148D5897CD5F7006D79 /* SSH */ = {
 			isa = PBXGroup;
 			children = (
@@ -1596,14 +1578,14 @@
 		AA26BD0E2F2E5FA500AECF2D /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
-				AAF00F002F50A00000049557 /* FFmpeg.framework */,
+				AAF00F002F50A00000049557 /* FFmpeg.xcframework */,
 				RCL000020 /* Rclone.xcframework */,
-				AAF10F002F50A00000049557 /* libavcodec.framework */,
-				AAF10F042F50A00000049557 /* libavformat.framework */,
-				AAF10F072F50A00000049557 /* libavutil.framework */,
-				AAF10F0A2F50A00000049557 /* libavfilter.framework */,
-				AAF10F0D2F50A00000049557 /* libswresample.framework */,
-				AAF10F102F50A00000049557 /* libswscale.framework */,
+				AAF10F002F50A00000049557 /* libavcodec.xcframework */,
+				AAF10F042F50A00000049557 /* libavformat.xcframework */,
+				AAF10F072F50A00000049557 /* libavutil.xcframework */,
+				AAF10F0A2F50A00000049557 /* libavfilter.xcframework */,
+				AAF10F0D2F50A00000049557 /* libswresample.xcframework */,
+				AAF10F102F50A00000049557 /* libswscale.xcframework */,
 				AA26CCB82F31070A00AECF2D /* libsqlite3.tbd */,
 				AA26CCC42F31090100AECF2D /* libresolv.tbd */,
 				AA26CCC22F31090000AECF2D /* SystemConfiguration.framework */,
@@ -2759,6 +2741,24 @@
 			path = MCP;
 			sourceTree = "<group>";
 		};
+		F2B19D0F3ECC4BAC4E308CB1 /* MCPServer */ = {
+			isa = PBXGroup;
+			children = (
+				A5EB23F34D3838B2F6E18A3C /* MCPHostedServer.swift */,
+			);
+			path = MCPServer;
+			sourceTree = "<group>";
+		};
+		FD384C5B4A24500ED1885534 /* Plugins */ = {
+			isa = PBXGroup;
+			children = (
+				32529488234D58031FC31C19 /* PluginManifest.swift */,
+				EC1BAAA8623062AE0A28AA74 /* PluginStore.swift */,
+				889EE0676E10C8BC138D5824 /* PluginToolRunner.swift */,
+			);
+			path = Plugins;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -2921,7 +2921,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 1500;
-				LastUpgradeCheck = 1500;
+				LastUpgradeCheck = 2720;
 				TargetAttributes = {
 					AA8A568A2F6FBB7A00A3E54E = {
 						CreatedOnToolsVersion = 26.2;
@@ -3799,7 +3799,6 @@
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 2;
-				DEVELOPMENT_TEAM = "";
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"DEBUG=1",
@@ -3808,7 +3807,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.openminis.MinisUITests;
+				PRODUCT_BUNDLE_IDENTIFIER = com.r0gueee.minis.MinisUITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_EMIT_LOC_STRINGS = NO;
@@ -3823,12 +3822,11 @@
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 2;
-				DEVELOPMENT_TEAM = "";
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.openminis.MinisUITests;
+				PRODUCT_BUNDLE_IDENTIFIER = com.r0gueee.minis.MinisUITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_EMIT_LOC_STRINGS = NO;
@@ -3843,7 +3841,6 @@
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 2;
-				DEVELOPMENT_TEAM = "";
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"DEBUG=1",
@@ -3875,7 +3872,7 @@
 					"$(inherited)",
 					"$(BUILT_PRODUCTS_DIR)/Minis.app/Minis.debug.dylib",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.openminis.MinisTests;
+				PRODUCT_BUNDLE_IDENTIFIER = com.r0gueee.minis.MinisTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_EMIT_LOC_STRINGS = NO;
@@ -3891,7 +3888,6 @@
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 2;
-				DEVELOPMENT_TEAM = "";
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				HEADER_SEARCH_PATHS = (
@@ -3919,7 +3915,7 @@
 					"$(inherited)",
 					"$(BUILT_PRODUCTS_DIR)/Minis.app/Minis.debug.dylib",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.openminis.MinisTests;
+				PRODUCT_BUNDLE_IDENTIFIER = com.r0gueee.minis.MinisTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_EMIT_LOC_STRINGS = NO;
@@ -3936,6 +3932,7 @@
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
@@ -3966,6 +3963,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = V5GXMU3HC2;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
@@ -3991,6 +3989,7 @@
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 			};
@@ -4002,6 +4001,7 @@
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
@@ -4032,6 +4032,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = V5GXMU3HC2;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
@@ -4053,6 +4054,7 @@
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				VALIDATE_PRODUCT = YES;
 			};
@@ -4061,7 +4063,6 @@
 		E51000072 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
@@ -4069,8 +4070,8 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"Preview Content\"";
-				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = x86_64;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(SRCROOT)/../../build/frameworks",
 					"$(SRCROOT)/../../deps/frameworks",
@@ -4090,14 +4091,13 @@
 				INFOPLIST_KEY_UILaunchStoryboardName = "Launch Screen";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				IPHONEOS_DEPLOYMENT_TARGET = "$(RECOMMENDED_IPHONEOS_DEPLOYMENT_TARGET)";
+				ISH_LIBS_DIR = "$(SRCROOT)/../../deps/libs";
+				"ISH_LIBS_DIR[sdk=iphonesimulator*]" = "$(SRCROOT)/../../deps/libs/iphonesimulator";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = x86_64;
-				ISH_LIBS_DIR = "$(SRCROOT)/../../deps/libs";
-				"ISH_LIBS_DIR[sdk=iphonesimulator*]" = "$(SRCROOT)/../../deps/libs/iphonesimulator";
 				LIBRARY_SEARCH_PATHS = "$(ISH_LIBS_DIR)";
 				MARKETING_VERSION = 1.15;
 				OTHER_LDFLAGS = (
@@ -4108,8 +4108,9 @@
 					"$(ISH_LIBS_DIR)/libish_aot.a",
 				);
 				OTHER_SWIFT_FLAGS = "";
-				PRODUCT_BUNDLE_IDENTIFIER = com.openminis.app;
+				PRODUCT_BUNDLE_IDENTIFIER = com.r0gueee.minis;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OBJC_BRIDGING_HEADER = "$(SRCROOT)/MinisApp-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
@@ -4120,7 +4121,6 @@
 		E51000073 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
@@ -4128,8 +4128,8 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"Preview Content\"";
-				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = x86_64;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(SRCROOT)/../../build/frameworks",
 					"$(SRCROOT)/../../deps/frameworks",
@@ -4149,14 +4149,13 @@
 				INFOPLIST_KEY_UILaunchStoryboardName = "Launch Screen";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				IPHONEOS_DEPLOYMENT_TARGET = "$(RECOMMENDED_IPHONEOS_DEPLOYMENT_TARGET)";
+				ISH_LIBS_DIR = "$(SRCROOT)/../../deps/libs";
+				"ISH_LIBS_DIR[sdk=iphonesimulator*]" = "$(SRCROOT)/../../deps/libs/iphonesimulator";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = x86_64;
-				ISH_LIBS_DIR = "$(SRCROOT)/../../deps/libs";
-				"ISH_LIBS_DIR[sdk=iphonesimulator*]" = "$(SRCROOT)/../../deps/libs/iphonesimulator";
 				LIBRARY_SEARCH_PATHS = "$(ISH_LIBS_DIR)";
 				MARKETING_VERSION = 1.15;
 				OTHER_LDFLAGS = (
@@ -4167,8 +4166,9 @@
 					"$(ISH_LIBS_DIR)/libish_aot.a",
 				);
 				OTHER_SWIFT_FLAGS = "";
-				PRODUCT_BUNDLE_IDENTIFIER = com.openminis.app;
+				PRODUCT_BUNDLE_IDENTIFIER = com.r0gueee.minis;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OBJC_BRIDGING_HEADER = "$(SRCROOT)/MinisApp-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
@@ -4182,21 +4182,21 @@
 				CODE_SIGN_ENTITLEMENTS = ShareExtension/ShareExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = ShareExtension/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Share to Minis";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				IPHONEOS_DEPLOYMENT_TARGET = "$(RECOMMENDED_IPHONEOS_DEPLOYMENT_TARGET)";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = 1.15;
-				PRODUCT_BUNDLE_IDENTIFIER = com.openminis.app.ShareExtension;
+				PRODUCT_BUNDLE_IDENTIFIER = com.r0gueee.minis.ShareExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -4209,21 +4209,21 @@
 				CODE_SIGN_ENTITLEMENTS = ShareExtension/ShareExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = ShareExtension/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Share to Minis";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				IPHONEOS_DEPLOYMENT_TARGET = "$(RECOMMENDED_IPHONEOS_DEPLOYMENT_TARGET)";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = 1.15;
-				PRODUCT_BUNDLE_IDENTIFIER = com.openminis.app.ShareExtension;
+				PRODUCT_BUNDLE_IDENTIFIER = com.r0gueee.minis.ShareExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -4236,21 +4236,21 @@
 				CODE_SIGN_ENTITLEMENTS = FileProvider/FileProvider.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = FileProvider/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Minis Files";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				IPHONEOS_DEPLOYMENT_TARGET = "$(RECOMMENDED_IPHONEOS_DEPLOYMENT_TARGET)";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = 1.15;
-				PRODUCT_BUNDLE_IDENTIFIER = com.openminis.app.FileProvider;
+				PRODUCT_BUNDLE_IDENTIFIER = com.r0gueee.minis.FileProvider;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -4263,21 +4263,21 @@
 				CODE_SIGN_ENTITLEMENTS = FileProvider/FileProvider.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = FileProvider/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Minis Files";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				IPHONEOS_DEPLOYMENT_TARGET = "$(RECOMMENDED_IPHONEOS_DEPLOYMENT_TARGET)";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = 1.15;
-				PRODUCT_BUNDLE_IDENTIFIER = com.openminis.app.FileProvider;
+				PRODUCT_BUNDLE_IDENTIFIER = com.r0gueee.minis.FileProvider;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -4290,21 +4290,21 @@
 				CODE_SIGN_ENTITLEMENTS = AgentWidget/AgentWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = AgentWidget/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Agent Activity";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				IPHONEOS_DEPLOYMENT_TARGET = 16.2;
+				IPHONEOS_DEPLOYMENT_TARGET = "$(RECOMMENDED_IPHONEOS_DEPLOYMENT_TARGET)";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = 1.15;
-				PRODUCT_BUNDLE_IDENTIFIER = com.openminis.app.AgentWidget;
+				PRODUCT_BUNDLE_IDENTIFIER = com.r0gueee.minis.AgentWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -4317,21 +4317,21 @@
 				CODE_SIGN_ENTITLEMENTS = AgentWidget/AgentWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = AgentWidget/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Agent Activity";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				IPHONEOS_DEPLOYMENT_TARGET = 16.2;
+				IPHONEOS_DEPLOYMENT_TARGET = "$(RECOMMENDED_IPHONEOS_DEPLOYMENT_TARGET)";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = 1.15;
-				PRODUCT_BUNDLE_IDENTIFIER = com.openminis.app.AgentWidget;
+				PRODUCT_BUNDLE_IDENTIFIER = com.r0gueee.minis.AgentWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -4343,20 +4343,20 @@
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
 				ENABLE_DEBUG_DYLIB = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				IPHONEOS_DEPLOYMENT_TARGET = "$(RECOMMENDED_IPHONEOS_DEPLOYMENT_TARGET)";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.openminis.MinisTestHost;
+				PRODUCT_BUNDLE_IDENTIFIER = com.r0gueee.minis.MinisTestHost;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -4368,20 +4368,20 @@
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
 				ENABLE_DEBUG_DYLIB = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				IPHONEOS_DEPLOYMENT_TARGET = "$(RECOMMENDED_IPHONEOS_DEPLOYMENT_TARGET)";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.openminis.MinisTestHost;
+				PRODUCT_BUNDLE_IDENTIFIER = com.r0gueee.minis.MinisTestHost;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
